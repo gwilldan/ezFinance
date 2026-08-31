@@ -2,8 +2,6 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
-
 @theme inline {
   --font-sans: var(--font-sans);
   --font-heading: var(--font-sans);
@@ -61,35 +59,22 @@
   --input: oklch(0.89 0.008 270);
   --ring: oklch(0.55 0.02 270);
   --radius: 0.75rem;
-}
 
-.dark {
-  --background: oklch(0.15 0.008 270);
-  --foreground: oklch(0.96 0.004 90);
-  --card: oklch(0.19 0.01 270);
-  --card-foreground: oklch(0.96 0.004 90);
-  --popover: oklch(0.19 0.01 270);
-  --popover-foreground: oklch(0.96 0.004 90);
-  --primary: oklch(0.92 0.004 90);
-  --primary-foreground: oklch(0.19 0.01 270);
-  --secondary: oklch(0.25 0.01 270);
-  --secondary-foreground: oklch(0.96 0.004 90);
-  --muted: oklch(0.23 0.01 270);
-  --muted-foreground: oklch(0.72 0.01 270);
-  --accent: oklch(0.72 0.13 155);
-  --accent-foreground: oklch(0.12 0.03 155);
-  --cyan-accent: #2e86de;
-  --cyan-accent-foreground: #ffffff;
-  --cyan-accent-soft: color-mix(in oklch, #2e86de 18%, #0f172a);
-  --gold-accent: #f7ca18;
-  --gold-accent-soft: color-mix(in oklch, #f7ca18 20%, #0f172a);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.7 0.01 270);
+  scroll-behavior: smooth;
 }
 
 @layer base {
-  * { @apply border-border outline-ring/50; }
-  html { @apply bg-background; }
-  body { @apply bg-background text-foreground; }
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply bg-background;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+button {
+  cursor: pointer;
 }
