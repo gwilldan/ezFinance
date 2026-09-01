@@ -1,6 +1,6 @@
 "use client"
 
-import * as React from "react"
+import {FormEvent, useState} from "react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -18,6 +18,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/password-input"
 
 function GoogleIcon() {
   return (
@@ -47,17 +48,78 @@ export function LoginForm({
   onSwitchToSignup,
   ...props
 }: React.ComponentProps<"div"> & { onSwitchToSignup?: () => void }) {
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    setError(null)
+    setMessage(null)
+    setIsSubmitting(true)
 
     const formData = new FormData(event.currentTarget)
-    const response = Object.fromEntries(formData.entries())
+    const email = String(formData.get("email") ?? "")
+    const password = String(formData.get("password") ?? "")
 
-    console.log("Login form response", response)
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      })
+      const data = (await response.json().catch(() => ({}))) as {
+        message?: string
+        error?: string
+        user?: { id?: string; email?: string }
+      }
+
+      if (!response.ok) {
+        setError(data.error ?? "Unable to sign in.")
+        return
+      }
+
+      setMessage(data.message ?? "Signed in successfully.")
+      console.log("Login successful", data.user)
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Unable to sign in.")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  function handleGoogleLogin() {
-    console.log("Login form response", { provider: "google" })
+  async function handleGoogleLogin() {
+    setError(null)
+    setMessage(null)
+
+    try {
+      const response = await fetch("/api/auth/google", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ redirectTo: window.location.origin }),
+      })
+      const data = (await response.json().catch(() => ({}))) as {
+        url?: string
+        error?: string
+      }
+
+      if (!response.ok || !data.url) {
+        setError(data.error ?? "Unable to sign in with Google.")
+        return
+      }
+
+      window.location.assign(data.url)
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Unable to sign in with Google."
+      )
+    }
   }
 
   return (
@@ -78,6 +140,7 @@ export function LoginForm({
             variant="outline"
             className="h-13 w-full rounded-2xl border-slate-200 bg-white text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50"
             onClick={handleGoogleLogin}
+            disabled={isSubmitting}
           >
             <GoogleIcon /> Continue with Google
           </Button>
@@ -101,32 +164,47 @@ export function LoginForm({
                   placeholder="you@example.com"
                   className="h-13 rounded-2xl border-slate-200 bg-white px-4 text-base text-slate-950 placeholder:text-slate-400 focus-visible:border-cyan-accent focus-visible:ring-cyan-accent/20 md:text-sm"
                   required
+                  disabled={isSubmitting}
                 />
               </Field>
               <Field>
                 <FieldLabel htmlFor="password" className="sr-only">
                   Password
                 </FieldLabel>
-                <Input
+                <PasswordInput
                   id="password"
                   name="password"
-                  type="password"
                   placeholder="Password"
                   className="h-13 rounded-2xl border-slate-200 bg-white px-4 text-base text-slate-950 placeholder:text-slate-400 focus-visible:border-cyan-accent focus-visible:ring-cyan-accent/20 md:text-sm"
                   required
+                  disabled={isSubmitting}
                 />
               </Field>
+              {(error || message) && (
+                <p
+                  className={cn(
+                    "rounded-xl px-3 py-2 text-sm",
+                    error
+                      ? "bg-red-50 text-red-600"
+                      : "bg-emerald-50 text-emerald-700"
+                  )}
+                >
+                  {error ?? message}
+                </p>
+              )}
               <Field className="gap-4">
                 <Button
                   type="submit"
                   className="h-13 rounded-2xl bg-slate-950 text-sm font-semibold text-white shadow-lg shadow-slate-950/15 hover:bg-slate-800"
+                  disabled={isSubmitting}
                 >
-                  Sign in
+                  {isSubmitting ? "Signing in..." : "Sign in"}
                 </Button>
                 <button
                   type="button"
-                  className="self-end text-sm font-medium text-slate-500 transition-colors hover:text-slate-950"
+                  className="self-end text-sm font-medium text-slate-500 transition-colors hover:text-slate-950 disabled:pointer-events-none disabled:opacity-50"
                   onClick={() => console.log("Forgot password clicked")}
+                  disabled={isSubmitting}
                 >
                   Forgot password?
                 </button>
@@ -134,8 +212,9 @@ export function LoginForm({
                   Don&apos;t have an account?{" "}
                   <button
                     type="button"
-                    className="font-semibold text-slate-950 hover:underline"
+                    className="font-semibold text-slate-950 hover:underline disabled:pointer-events-none disabled:opacity-50"
                     onClick={onSwitchToSignup}
+                    disabled={isSubmitting}
                   >
                     Sign up
                   </button>

@@ -1,7 +1,5 @@
 "use client"
 
-import * as React from "react"
-
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -18,6 +16,8 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/password-input"
+import { FormEvent, useState } from "react"
 
 function GoogleIcon() {
   return (
@@ -47,17 +47,88 @@ export function SignupForm({
   onSwitchToLogin,
   ...props
 }: React.ComponentProps<typeof Card> & { onSwitchToLogin?: () => void }) {
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    setError(null)
+    setMessage(null)
+    setIsSubmitting(true)
 
     const formData = new FormData(event.currentTarget)
-    const response = Object.fromEntries(formData.entries())
+    const name = String(formData.get("name") ?? "")
+    const email = String(formData.get("email") ?? "")
+    const password = String(formData.get("password") ?? "")
+    const confirmPassword = String(formData.get("confirmPassword") ?? "")
 
-    console.log("Signup form response", response)
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.")
+      setIsSubmitting(false)
+      return
+    }
+
+    try {
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name, email, password, confirmPassword }),
+      })
+      const data = (await response.json().catch(() => ({}))) as {
+        message?: string
+        error?: string
+        user?: { id?: string; email?: string }
+      }
+
+      if (!response.ok) {
+        setError(data.error ?? "Unable to create account.")
+        return
+      }
+
+      setMessage(data.message ?? "Account created successfully.")
+      console.log("Signup successful", data.user)
+    } catch (error) {
+      setError(
+        error instanceof Error ? error.message : "Unable to create account."
+      )
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  function handleGoogleSignup() {
-    console.log("Signup form response", { provider: "google" })
+  async function handleGoogleSignup() {
+    setError(null)
+    setMessage(null)
+
+    try {
+      const response = await fetch("/api/auth/google", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ redirectTo: window.location.origin }),
+      })
+      const data = (await response.json().catch(() => ({}))) as {
+        url?: string
+        error?: string
+      }
+
+      if (!response.ok || !data.url) {
+        setError(data.error ?? "Unable to sign up with Google.")
+        return
+      }
+
+      window.location.assign(data.url)
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Unable to sign up with Google."
+      )
+    }
   }
 
   return (
@@ -83,6 +154,7 @@ export function SignupForm({
           variant="outline"
           className="h-13 w-full rounded-2xl border-slate-200 bg-white text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50"
           onClick={handleGoogleSignup}
+          disabled={isSubmitting}
         >
           <GoogleIcon /> Continue with Google
         </Button>
@@ -106,6 +178,7 @@ export function SignupForm({
                 placeholder="Full name"
                 className="h-13 rounded-2xl border-slate-200 bg-white px-4 text-base text-slate-950 placeholder:text-slate-400 focus-visible:border-cyan-accent focus-visible:ring-cyan-accent/20 md:text-sm"
                 required
+                disabled={isSubmitting}
               />
             </Field>
             <Field>
@@ -119,47 +192,62 @@ export function SignupForm({
                 placeholder="you@example.com"
                 className="h-13 rounded-2xl border-slate-200 bg-white px-4 text-base text-slate-950 placeholder:text-slate-400 focus-visible:border-cyan-accent focus-visible:ring-cyan-accent/20 md:text-sm"
                 required
+                disabled={isSubmitting}
               />
             </Field>
             <Field>
               <FieldLabel htmlFor="password" className="sr-only">
                 Password
               </FieldLabel>
-              <Input
+              <PasswordInput
                 id="password"
                 name="password"
-                type="password"
                 placeholder="Password"
                 className="h-13 rounded-2xl border-slate-200 bg-white px-4 text-base text-slate-950 placeholder:text-slate-400 focus-visible:border-cyan-accent focus-visible:ring-cyan-accent/20 md:text-sm"
                 required
+                disabled={isSubmitting}
               />
             </Field>
             <Field>
               <FieldLabel htmlFor="confirm-password" className="sr-only">
                 Confirm password
               </FieldLabel>
-              <Input
+              <PasswordInput
                 id="confirm-password"
                 name="confirmPassword"
-                type="password"
                 placeholder="Confirm password"
                 className="h-13 rounded-2xl border-slate-200 bg-white px-4 text-base text-slate-950 placeholder:text-slate-400 focus-visible:border-cyan-accent focus-visible:ring-cyan-accent/20 md:text-sm"
                 required
+                disabled={isSubmitting}
               />
             </Field>
+            {(error || message) && (
+              <p
+                className={cn(
+                  "rounded-xl px-3 py-2 text-sm",
+                  error
+                    ? "bg-red-50 text-red-600"
+                    : "bg-emerald-50 text-emerald-700"
+                )}
+              >
+                {error ?? message}
+              </p>
+            )}
             <Field className="gap-4 pt-1">
               <Button
                 type="submit"
                 className="h-13 rounded-2xl bg-slate-950 text-sm font-semibold text-white shadow-lg shadow-slate-950/15 hover:bg-slate-800"
+                disabled={isSubmitting}
               >
-                Create account
+                {isSubmitting ? "Creating account..." : "Create account"}
               </Button>
               <FieldDescription className="px-4 text-center text-sm text-slate-500">
                 Already have an account?{" "}
                 <button
                   type="button"
-                  className="font-semibold text-slate-950 hover:underline"
+                  className="font-semibold text-slate-950 hover:underline disabled:pointer-events-none disabled:opacity-50"
                   onClick={onSwitchToLogin}
+                  disabled={isSubmitting}
                 >
                   Sign in
                 </button>

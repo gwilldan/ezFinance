@@ -1,11 +1,11 @@
 "use client"
 
-import * as React from "react"
 import { ArrowRight, AtSign, BarChart3, FileUp, Sparkles } from "lucide-react"
 import { AuthModal, type AuthMode } from "@/components/auth-modal"
 import { Button } from "@/components/ui/button"
 import Modal from "./modal"
 import Mockup from "./home-mockup"
+import { useState } from "react"  
 
 const features = [
   {
@@ -26,8 +26,8 @@ const features = [
 ]
 
 export function Home() {
-  const [showDemo, setShowDemo] = React.useState(false)
-  const [authMode, setAuthMode] = React.useState<AuthMode | null>(null)
+  const [showDemo, setShowDemo] = useState(false)
+  const [authMode, setAuthMode] = useState<AuthMode | null>(null)
 
   return (
     <main className="min-h-screen overflow-hidden bg-background pt-20 text-foreground">
