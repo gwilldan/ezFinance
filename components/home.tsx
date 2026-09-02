@@ -1,11 +1,12 @@
 "use client"
 
+import React, { useEffect, useState } from "react"
 import { ArrowRight, AtSign, BarChart3, FileUp, Sparkles } from "lucide-react"
 import { AuthModal, type AuthMode } from "@/components/auth-modal"
 import { Button } from "@/components/ui/button"
 import Modal from "./modal"
 import Mockup from "./home-mockup"
-import { useState } from "react"  
+import Analyzer from "@/components/analyzer/analyzer"
 
 const features = [
   {
