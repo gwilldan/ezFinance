@@ -37,6 +37,7 @@ export async function POST(request: Request) {
     }
 
     return createSessionResponse(payload, "Signed in successfully.")
+
   } catch (error) {
     console.error("Login route error", error)
 

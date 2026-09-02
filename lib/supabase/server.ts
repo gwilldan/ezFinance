@@ -152,7 +152,8 @@ export function createSessionResponse(payload: SupabaseAuthPayload, fallbackMess
       : null,
   })
 
-  console.log({ accessToken: payload.access_token, refreshToken: payload.refresh_token })
+  console.log("from the create session response: ", "=".repeat(20))
+  console.log({payload})
 
   if (payload.access_token) {
     response.cookies.set("ezfinance-access-token", payload.access_token, {

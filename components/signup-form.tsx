@@ -89,7 +89,6 @@ export function SignupForm({
       }
 
       setMessage(data.message ?? "Account created successfully.")
-      console.log("Signup successful", data.user)
     } catch (error) {
       setError(
         error instanceof Error ? error.message : "Unable to create account."

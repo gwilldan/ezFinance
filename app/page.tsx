@@ -4,10 +4,9 @@ import { Home } from "@/components/home"
 import { getUserByAccessToken } from "@/lib/supabase/server"
 
 export default async function Page() {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const accessToken = cookieStore.get("ezfinance-access-token")?.value ?? null
 
-  // server-side check for user
   const user = await getUserByAccessToken(accessToken)
 
   if (user && (user as any).id) {

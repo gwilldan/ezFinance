@@ -115,7 +115,7 @@ export function LoginForm({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ redirectTo: `${window.location.origin}/auth/callback` }),
+        body: JSON.stringify({ redirectTo: `${window.location.origin}` }),
       })
       const data = (await response.json().catch(() => ({}))) as {
         url?: string
@@ -128,10 +128,10 @@ export function LoginForm({
       }
 
       // Debug log the provider url in the client console so we can trace issues
-      try { console.debug('Google authorize url:', data.url) } catch (e) {}
+      try { console.log('Google authorize url:', data.url) } catch (e) {}
 
       // navigate to provider
-      window.location.assign(data.url)
+      // window.location.assign(data.url)
     } catch (error) {
       setError(
         error instanceof Error
