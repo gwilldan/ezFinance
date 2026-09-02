@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { createSupabaseRouteClient } from "@/lib/supabase/server"
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createSupabaseServerClient()
+    const supabase = await createSupabaseRouteClient()
     const redirectTo = `${request.nextUrl.origin}/api/auth/callback`
 
     const { data, error } = await supabase.auth.signInWithOAuth({

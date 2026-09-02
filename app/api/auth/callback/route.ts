@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createSupabaseServerClient } from "@/lib/supabase/server"
+import { createSupabaseRouteClient } from "@/lib/supabase/server"
 
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code")
@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/?error=oauth", request.url))
   }
 
-  const supabase = await createSupabaseServerClient()
+  const supabase = await createSupabaseRouteClient()
   const { error } = await supabase.auth.exchangeCodeForSession(code)
 
   if (error) {

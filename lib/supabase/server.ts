@@ -73,6 +73,19 @@ export async function createSupabaseServerClient() {
       getAll() {
         return cookieStore.getAll()
       },
+    },
+  })
+}
+
+export async function createSupabaseRouteClient() {
+  const cookieStore = await cookies()
+  const { url, key } = getSupabaseServerConfig()
+
+  return createServerClient(url, key, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll()
+      },
       setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value, options }) => {
           cookieStore.set(name, value, options)
@@ -83,12 +96,12 @@ export async function createSupabaseServerClient() {
 }
 
 export async function signInWithPassword(email: string, password: string) {
-  const supabase = await createSupabaseServerClient()
+  const supabase = await createSupabaseRouteClient()
   return supabase.auth.signInWithPassword({ email, password })
 }
 
 export async function signUpWithEmail(email: string, password: string, fullName?: string) {
-  const supabase = await createSupabaseServerClient()
+  const supabase = await createSupabaseRouteClient()
   return supabase.auth.signUp({
     email,
     password,
@@ -120,6 +133,34 @@ export async function getSessionUser() {
 }
 export type User = NonNullable<Awaited<ReturnType<typeof getSessionUser>>>
 
+
+
+export async function signOutUser() {
+  const supabase = await createSupabaseRouteClient()
+  return supabase.auth.signOut()
+}
+
+export function clearAuthCookies(response: NextResponse) {
+  const cookieNames = [
+    "sb-access-token",
+    "sb-refresh-token",
+    "ezfinance-access-token",
+    "ezfinance-refresh-token",
+  ]
+
+  cookieNames.forEach((name) => {
+    response.cookies.set(name, "", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 0,
+      expires: new Date(0),
+    })
+  })
+
+  return response
+}
 
 export async function refreshAccessToken(refreshToken?: string | null) {
   void refreshToken
