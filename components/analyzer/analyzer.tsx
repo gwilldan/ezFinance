@@ -4,7 +4,7 @@ import React from "react"
 
 export default function Analyzer() {
   return (
-    <div className="mx-auto max-w-3xl px-6 py-12">
+    <div className="mx-auto max-w-3xl px-6 py-12 pt-30">
       {/* Hero / CTA */}
       <div className="rounded-2xl bg-slate-100 p-12 text-center shadow-sm">
         <button
