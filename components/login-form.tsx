@@ -115,7 +115,7 @@ export function LoginForm({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ redirectTo: window.location.origin }),
+        body: JSON.stringify({ redirectTo: `${window.location.origin}/auth/callback` }),
       })
       const data = (await response.json().catch(() => ({}))) as {
         url?: string
