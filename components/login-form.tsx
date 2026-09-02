@@ -104,14 +104,9 @@ export function LoginForm({
         }
       }
 
-      // store JWT in sessionStorage only (per requirement)
-      if (token) {
-        try {
-          sessionStorage.setItem('jwt', token)
-        } catch (e) {
-          console.warn('Unable to set sessionStorage jwt', e)
-        }
-      }
+      // The server (createSessionResponse) sets httpOnly access/refresh cookies.
+      // Avoid storing tokens in client-accessible storage to reduce attack surface.
+      // Keep only the derived user object in localStorage for UI persistence.
 
       // derive user object from response or token payload
       let userObj = (data as any).user ?? null
