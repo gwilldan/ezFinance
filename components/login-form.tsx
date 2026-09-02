@@ -94,8 +94,10 @@ export function LoginForm({
         // ignore
       }
 
-      // Navigate to root. use client router replace to avoid adding history entry.
-      replace("/")
+      // Do a full server-side navigation so the page reloads and server-side
+      // rendering picks up the new httpOnly cookies and renders the Analyzer.
+      // Using window.location.replace avoids adding a history entry.
+      window.location.replace("/")
     } catch (error) {
       setError(error instanceof Error ? error.message : "Unable to sign in.")
     } finally {
