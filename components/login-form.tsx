@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { PasswordInput } from "@/components/password-input"
+import { useRouter } from "next/navigation"
 
 function GoogleIcon() {
   return (
@@ -46,17 +47,21 @@ function GoogleIcon() {
 export function LoginForm({
   className,
   onSwitchToSignup,
+  onClose,
   ...props
-}: React.ComponentProps<"div"> & { onSwitchToSignup?: () => void }) {
+}: React.ComponentProps<"div"> & { onSwitchToSignup?: () => void; onClose?: () => void }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  const {replace} = useRouter()
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
     setMessage(null)
     setIsSubmitting(true)
+
 
     const formData = new FormData(event.currentTarget)
     const email = String(formData.get("email") ?? "")
@@ -82,7 +87,15 @@ export function LoginForm({
       }
 
       setMessage(data.message ?? "Signed in successfully.")
-      console.log("Login successful", data.user)
+      // Close the modal at the parent level before navigating so it does not persist.
+      try {
+        if (typeof onClose === 'function') onClose()
+      } catch (e) {
+        // ignore
+      }
+
+      // Navigate to root. use client router replace to avoid adding history entry.
+      replace("/")
     } catch (error) {
       setError(error instanceof Error ? error.message : "Unable to sign in.")
     } finally {

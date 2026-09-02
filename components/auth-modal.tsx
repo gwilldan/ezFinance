@@ -42,9 +42,10 @@ export function AuthModal({
           <SignupForm
             className="max-h-[calc(100dvh-2rem)] overflow-y-auto"
             onSwitchToLogin={() => onModeChange("login")}
+            onClose={onClose}
           />
         ) : (
-          <LoginForm onSwitchToSignup={() => onModeChange("signup")} />
+          <LoginForm onSwitchToSignup={() => onModeChange("signup")} onClose={onClose} />
         )}
       </div>
     </div>
