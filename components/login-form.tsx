@@ -82,66 +82,7 @@ export function LoginForm({
       }
 
       setMessage(data.message ?? "Signed in successfully.")
-
-      // Prefer token field names commonly returned from auth endpoints
-      const token = (data as any).token ?? (data as any).jwt ?? (data as any).accessToken
-
-      // helper to decode JWT payload without adding a dependency
-      function decodeJwtPayload(t: string | null) {
-        if (!t) return null
-        try {
-          const [, payload] = t.split('.')
-          const base64 = payload.replace(/-/g, '+').replace(/_/g, '/')
-          const json = decodeURIComponent(
-            atob(base64)
-              .split("")
-              .map((c) => `%${('00' + c.charCodeAt(0).toString(16)).slice(-2)}`)
-              .join('')
-          )
-          return JSON.parse(json)
-        } catch (e) {
-          return null
-        }
-      }
-
-      // store JWT in sessionStorage only (per requirement)
-      if (token) {
-        try {
-          sessionStorage.setItem('jwt', token)
-        } catch (e) {
-          console.warn('Unable to set sessionStorage jwt', e)
-        }
-      }
-
-      // derive user object from response or token payload
-      let userObj = (data as any).user ?? null
-      if (!userObj && token) {
-        const payload = decodeJwtPayload(token)
-        if (payload) {
-          // common fields: sub, id, email, name
-          userObj = {
-            id: payload.sub ?? payload.id ?? payload.userId,
-            name: payload.name ?? payload.fullName ?? payload.username,
-            email: payload.email,
-          }
-        }
-      }
-
-      // As a fallback, if nothing available, create a minimal user object
-      if (!userObj) {
-        userObj = { id: undefined, name: undefined, email: undefined }
-      }
-
-      try {
-        localStorage.setItem('user', JSON.stringify(userObj))
-      } catch (e) {
-        console.warn('Unable to set localStorage user', e)
-      }
-
-      console.log('Login successful', userObj)
-
-      // reload so Home() picks up sessionStorage and switches to analyzer
-      window.location.reload()
+      console.log("Login successful", data.user)
     } catch (error) {
       setError(error instanceof Error ? error.message : "Unable to sign in.")
     } finally {
