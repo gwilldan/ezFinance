@@ -21,7 +21,16 @@ export default function AuthCallbackPage() {
 
         console.log("Auth callback received params:", { access_token, refresh_token, expires_in })
 
+        const error = queryParams.get('error') || fragParams.get('error')
+        const errorDescription = queryParams.get('error_description') || fragParams.get('error_description')
+        if (error) {
+          console.error('OAuth error on callback', { error, errorDescription })
+          setMessage(`OAuth error: ${error} ${errorDescription ? '- ' + decodeURIComponent(errorDescription) : ''}`)
+          // continue to try to parse tokens in fragment in case provider returned them despite the error
+        }
+
         if (!access_token) {
+          if (error) return
           setMessage("No access token found in callback.")
           return
         }

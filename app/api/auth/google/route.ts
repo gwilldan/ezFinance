@@ -12,8 +12,7 @@ export async function POST(request: NextRequest) {
     const authUrl = new URL(`${url}/auth/v1/authorize`)
 
     authUrl.searchParams.set("provider", "google")
-    // request token response so Supabase returns tokens in the URL fragment
-    authUrl.searchParams.set("response_type", "token")
+    // Let Supabase manage response_type/state. Only set redirect_to to our client callback.
     authUrl.searchParams.set("redirect_to", redirectTo)
 
     return NextResponse.json({ url: authUrl.toString() })
