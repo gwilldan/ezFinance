@@ -98,6 +98,7 @@ export function LoginForm({
       // rendering picks up the new httpOnly cookies and renders the Analyzer.
       // Using window.location.replace avoids adding a history entry.
       window.location.replace("/")
+
     } catch (error) {
       setError(error instanceof Error ? error.message : "Unable to sign in.")
     } finally {
@@ -115,7 +116,7 @@ export function LoginForm({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ redirectTo: `${window.location.origin}` }),
+        body: JSON.stringify({ redirectTo: `${window.location.origin}/api/auth/callback` }),
       })
       const data = (await response.json().catch(() => ({}))) as {
         url?: string
@@ -128,10 +129,10 @@ export function LoginForm({
       }
 
       // Debug log the provider url in the client console so we can trace issues
-      try { console.log('Google authorize url:', data.url) } catch (e) {}
+      try { console.debug('Google authorize url:', data.url) } catch (e) {}
 
       // navigate to provider
-      // window.location.assign(data.url)
+      window.location.assign(data.url)
     } catch (error) {
       setError(
         error instanceof Error
@@ -143,7 +144,7 @@ export function LoginForm({
 
   return (
     <div className={cn("w-full", className)} {...props}>
-      <Card className="gap-0 rounded-[1.5rem] bg-white px-7 py-7 text-slate-950 shadow-2xl ring-1 ring-slate-200 sm:px-8">
+      <Card className="gap-0 rounded-3xl bg-white px-7 py-7 text-slate-950 shadow-2xl ring-1 ring-slate-200 sm:px-8">
         <CardHeader className="items-center px-0 pt-0 text-center">
           <CardTitle className="text-3xl font-semibold tracking-[-0.04em] text-slate-950">
             Welcome back
