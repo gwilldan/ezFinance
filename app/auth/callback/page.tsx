@@ -1,14 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 
 export default function AuthCallbackPage() {
-  const [message, setMessage] = useState("Processing sign in...")
-
   useEffect(() => {
+    let cancelled = false
+
     async function handle() {
       try {
-        // Support tokens in fragment (#...) and in query (?access_token=...)
         const hash = window.location.hash || ""
         const search = window.location.search || ""
 
@@ -19,68 +18,50 @@ export default function AuthCallbackPage() {
         const refresh_token = fragParams.get("refresh_token") || queryParams.get("refresh_token")
         const expires_in = fragParams.get("expires_in") || queryParams.get("expires_in")
 
-        console.log("Auth callback received params:", { access_token, refresh_token, expires_in })
-
         const error = queryParams.get('error') || fragParams.get('error')
-        const errorDescription = queryParams.get('error_description') || fragParams.get('error_description')
-        if (error) {
-          console.error('OAuth error on callback', { error, errorDescription })
-          setMessage(`OAuth error: ${error} ${errorDescription ? '- ' + decodeURIComponent(errorDescription) : ''}`)
-          // continue to try to parse tokens in fragment in case provider returned them despite the error
-        }
-
-        if (!access_token) {
-          if (error) return
-          setMessage("No access token found in callback.")
+        if (error && !access_token) {
+          console.error('OAuth error on callback', { error, description: queryParams.get('error_description') || fragParams.get('error_description') })
           return
         }
 
-        setMessage("Exchanging token with server...")
+        if (!access_token) {
+          console.error('No access token found on callback')
+          return
+        }
 
+        // exchange tokens with server and wait for the response to complete
         const resp = await fetch("/api/auth/session", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ access_token, refresh_token, expires_in: expires_in ? Number(expires_in) : undefined }),
+          credentials: 'same-origin',
         })
 
         if (!resp.ok) {
           const err = await resp.json().catch(() => ({}))
-          setMessage(err?.error ?? "Failed to create session")
-          console.error("/api/auth/session error", err)
+          console.error('/api/auth/session error', err)
           return
         }
 
-        const body = await resp.json().catch(() => ({}))
-        try {
-          if (body?.user) {
-            // persist a minimal user object for UI convenience
-            try {
-              localStorage.setItem('user', JSON.stringify({ id: body.user.id, name: body.user.email ?? null, email: body.user.email }))
-            } catch (e) {
-              console.warn('Failed to persist user', e)
-            }
-            // notify any listeners
-            try { window.dispatchEvent(new CustomEvent('auth:login', { detail: { user: body.user } })) } catch(e){}
-          }
-        } catch (e) {
-          // ignore
-        }
+        // ensure browser had time to apply Set-Cookie headers — small delay improves reliability
+        await new Promise((res) => setTimeout(res, 300))
 
-        // session cookies set — navigate to root and replace history so tokens are not visible
+        if (cancelled) return
+
+        // Replace history and navigate to root (full reload)
         window.history.replaceState({}, document.title, "/")
         window.location.replace("/")
       } catch (e) {
-        setMessage(e instanceof Error ? e.message : "Unexpected error")
-        console.error(e)
+        console.error('Auth callback unexpected error', e)
       }
     }
 
     handle()
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
-  return (
-    <main className="min-h-screen flex items-center justify-center">
-      <div className="rounded-lg bg-white p-8 shadow">{message}</div>
-    </main>
-  )
+  return null
 }
