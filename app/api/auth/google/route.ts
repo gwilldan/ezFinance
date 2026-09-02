@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     }
     const { url } = getSupabaseServerConfig()
     // redirect to a server callback endpoint that will read the token hash in the browser and then exchange it for the session cookie
-    const redirectTo = body.redirectTo ?? `${request.nextUrl.origin}/api/auth/callback`
+    const redirectTo = body.redirectTo ?? `${request.nextUrl.origin}/auth/callback`
     const authUrl = new URL(`${url}/auth/v1/authorize`)
 
     authUrl.searchParams.set("provider", "google")
