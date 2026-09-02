@@ -1,7 +1,6 @@
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
-import { Nav } from "@/components/nav"
 import Footer from "@/components/footer"
 
 const fontSans = Inter({ subsets: ["latin"], variable: "--font-sans" })
@@ -20,7 +19,6 @@ export default function RootLayout({
   return (
     <html lang="en" className={fontSans.variable}>
       <body className="antialiased">
-        <Nav />
         {children}
         <Footer />
       </body>

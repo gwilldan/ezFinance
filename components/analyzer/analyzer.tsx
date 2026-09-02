@@ -1,7 +1,5 @@
 "use client"
 
-import React from "react"
-
 export default function Analyzer() {
   return (
     <div className="mx-auto max-w-3xl px-6 py-12 pt-30">

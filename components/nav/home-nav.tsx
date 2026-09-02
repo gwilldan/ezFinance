@@ -1,9 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { Button } from "./ui/button"
-import { ArrowRight, X, Menu, Wallet } from "lucide-react"
+import { Button } from "../ui/button"
+import { ArrowRight, X, Menu } from "lucide-react"
 import { AuthModal, type AuthMode } from "@/components/auth-modal"
+import EzFinanceIcon from "../ui/icon"
 
 export function Nav() {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -13,16 +14,7 @@ export function Nav() {
     <>
       <nav className="fixed inset-x-0 top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 lg:px-10">
-          <a
-            href="#top"
-            className="flex items-center gap-2 font-semibold tracking-tight"
-            aria-label="ezFinance home"
-          >
-            <span className="flex size-8 items-center justify-center rounded-lg bg-cyan-accent text-cyan-accent-foreground shadow-sm shadow-cyan-accent/30">
-              <Wallet className="size-4" />
-            </span>
-            <span>ezFinance</span>
-          </a>
+          <EzFinanceIcon href="#top" />
           <div className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
             <a
               href="#product"
@@ -67,6 +59,7 @@ export function Nav() {
             {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>
         </div>
+        
         {menuOpen && (
           <div className="mx-6 flex flex-col gap-4 border-t border-border py-5 text-sm md:hidden">
             <a href="#product">Product</a>

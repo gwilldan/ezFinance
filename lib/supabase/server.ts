@@ -118,6 +118,8 @@ export async function getSessionUser() {
   if (error) return null
   return data.user
 }
+export type User = NonNullable<Awaited<ReturnType<typeof getSessionUser>>>
+
 
 export async function refreshAccessToken(refreshToken?: string | null) {
   void refreshToken
