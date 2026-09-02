@@ -8,17 +8,25 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     async function handle() {
       try {
+        // Support tokens in fragment (#...) and in query (?access_token=...)
         const hash = window.location.hash || ""
-        // parse fragment like #access_token=...&refresh_token=...&expires_in=...
-        const params = new URLSearchParams(hash.replace(/^#/, ""))
-        const access_token = params.get("access_token")
-        const refresh_token = params.get("refresh_token")
-        const expires_in = params.get("expires_in")
+        const search = window.location.search || ""
+
+        const fragParams = new URLSearchParams(hash.replace(/^#/, ""))
+        const queryParams = new URLSearchParams(search.replace(/^\?/, ""))
+
+        const access_token = fragParams.get("access_token") || queryParams.get("access_token")
+        const refresh_token = fragParams.get("refresh_token") || queryParams.get("refresh_token")
+        const expires_in = fragParams.get("expires_in") || queryParams.get("expires_in")
+
+        console.log("Auth callback received params:", { access_token, refresh_token, expires_in })
 
         if (!access_token) {
           setMessage("No access token found in callback.")
           return
         }
+
+        setMessage("Exchanging token with server...")
 
         const resp = await fetch("/api/auth/session", {
           method: "POST",
@@ -29,7 +37,24 @@ export default function AuthCallbackPage() {
         if (!resp.ok) {
           const err = await resp.json().catch(() => ({}))
           setMessage(err?.error ?? "Failed to create session")
+          console.error("/api/auth/session error", err)
           return
+        }
+
+        const body = await resp.json().catch(() => ({}))
+        try {
+          if (body?.user) {
+            // persist a minimal user object for UI convenience
+            try {
+              localStorage.setItem('user', JSON.stringify({ id: body.user.id, name: body.user.email ?? null, email: body.user.email }))
+            } catch (e) {
+              console.warn('Failed to persist user', e)
+            }
+            // notify any listeners
+            try { window.dispatchEvent(new CustomEvent('auth:login', { detail: { user: body.user } })) } catch(e){}
+          }
+        } catch (e) {
+          // ignore
         }
 
         // session cookies set — navigate to root and replace history so tokens are not visible
@@ -37,6 +62,7 @@ export default function AuthCallbackPage() {
         window.location.replace("/")
       } catch (e) {
         setMessage(e instanceof Error ? e.message : "Unexpected error")
+        console.error(e)
       }
     }
 

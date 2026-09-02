@@ -127,6 +127,10 @@ export function LoginForm({
         return
       }
 
+      // Debug log the provider url in the client console so we can trace issues
+      try { console.debug('Google authorize url:', data.url) } catch (e) {}
+
+      // navigate to provider
       window.location.assign(data.url)
     } catch (error) {
       setError(
