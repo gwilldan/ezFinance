@@ -28,7 +28,6 @@ const features = [
 import React, { useEffect, useState } from "react"
 "use client"
 
-import React, { useEffect, useState } from "react"
 import { ArrowRight, AtSign, BarChart3, FileUp, Sparkles } from "lucide-react"
 import { AuthModal, type AuthMode } from "@/components/auth-modal"
 import { Button } from "@/components/ui/button"
@@ -59,23 +58,55 @@ export function Home() {
   const [authMode, setAuthMode] = useState<AuthMode | null>(null)
   const [user, setUser] = useState<{ id?: string | null; name?: string; email?: string } | null>(null)
 
-  useEffect(() => {
-    // Rely on the server-set httpOnly cookies for authentication.
-    // Read the persisted minimal user object from localStorage (keeps UI responsive
-    // without exposing tokens client-side). This is the 'Option A' approach.
+  // Decode JWT payload without extra dependencies
+  function decodeJwtPayload(t: string | null) {
+    if (!t) return null
     try {
-      const raw = localStorage.getItem('user')
-      if (raw) {
-        const parsed = JSON.parse(raw)
-        if (parsed && parsed.id) {
-          setUser(parsed)
+      const [, payload] = t.split('.')
+      const base64 = payload.replace(/-/g, '+').replace(/_/g, '/')
+      const json = decodeURIComponent(
+        atob(base64)
+          .split("")
+          .map((c) => `%${('00' + c.charCodeAt(0).toString(16)).slice(-2)}`)
+          .join('')
+      )
+      return JSON.parse(json)
+    } catch (e) {
+      return null
+    }
+  }
+
+  useEffect(() => {
+    // On load, always check sessionStorage for a jwt
+    try {
+      const token = sessionStorage.getItem('jwt')
+      if (token) {
+        const payload = decodeJwtPayload(token)
+        if (payload) {
+          const derived = {
+            id: payload.sub ?? payload.id ?? payload.userId,
+            name: payload.name ?? payload.fullName ?? payload.username,
+            email: payload.email,
+          }
+          setUser(derived)
+          // ensure a persisted user object exists in localStorage as well
+          try {
+            const existing = localStorage.getItem('user')
+            if (!existing || existing === 'null') {
+              localStorage.setItem('user', JSON.stringify(derived))
+            }
+          } catch (e) {
+            // ignore localStorage errors
+          }
           return
         }
       }
+
+      // no token -> ensure user is null
+      setUser(null)
     } catch (e) {
-      // ignore parse errors and fall through to unauthenticated state
+      setUser(null)
     }
-    setUser(null)
   }, [])
 
   // If user has id, show Analyzer
