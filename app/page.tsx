@@ -1,15 +1,11 @@
-import { cookies } from "next/headers"
 import Analyzer from "@/components/analyzer/analyzer"
 import { Home } from "@/components/home"
-import { getUserByAccessToken } from "@/lib/supabase/server"
+import { getSessionUser } from "@/lib/supabase/server"
 
 export default async function Page() {
-  const cookieStore = await cookies()
-  const accessToken = cookieStore.get("ezfinance-access-token")?.value ?? null
+  const user = await getSessionUser()
 
-  const user = await getUserByAccessToken(accessToken)
-
-  if (user && (user as any).id) {
+  if (user?.id) {
     return <Analyzer />
   }
 

@@ -1,24 +1,29 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getSupabaseServerConfig } from "@/lib/supabase/server"
+import { createSupabaseServerClient } from "@/lib/supabase/server"
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json().catch(() => ({}))) as {
-      redirectTo?: string
+    const supabase = await createSupabaseServerClient()
+    const redirectTo = `${request.nextUrl.origin}/api/auth/callback`
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo,
+      },
+    })
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
     }
-    const { url } = getSupabaseServerConfig()
-    // redirect to a server callback endpoint that will read the token hash in the browser and then exchange it for the session cookie
-    const redirectTo = body.redirectTo ?? `${request.nextUrl.origin}/auth/callback`
-    const authUrl = new URL(`${url}/auth/v1/authorize`)
 
-    authUrl.searchParams.set("provider", "google")
-    // Let Supabase manage response_type/state. Only set redirect_to to our client callback.
-    authUrl.searchParams.set("redirect_to", redirectTo)
+    if (!data.url) {
+      return NextResponse.json({ error: "Google signup URL was not created." }, { status: 400 })
+    }
 
-    return NextResponse.json({ url: authUrl.toString() })
+    return NextResponse.json({ url: data.url })
   } catch (error) {
-    console.error("Google auth route error", error)
-
+    console.error("Google OAuth start failed:", error)
     return NextResponse.json(
       {
         error:

@@ -45,7 +45,10 @@ export function AuthModal({
             onClose={onClose}
           />
         ) : (
-          <LoginForm onSwitchToSignup={() => onModeChange("signup")} onClose={onClose} />
+          <LoginForm
+            onSwitchToSignup={() => onModeChange("signup")}
+            onClose={onClose}
+          />
         )}
       </div>
     </div>

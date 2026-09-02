@@ -45,8 +45,12 @@ function GoogleIcon() {
 export function SignupForm({
   className,
   onSwitchToLogin,
+  onClose,
   ...props
-}: React.ComponentProps<typeof Card> & { onSwitchToLogin?: () => void }) {
+}: React.ComponentProps<typeof Card> & {
+  onSwitchToLogin?: () => void
+  onClose?: () => void
+}) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -108,8 +112,8 @@ export function SignupForm({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ redirectTo: window.location.origin }),
       })
+
       const data = (await response.json().catch(() => ({}))) as {
         url?: string
         error?: string

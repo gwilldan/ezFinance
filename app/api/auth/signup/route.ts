@@ -1,9 +1,5 @@
 import { NextResponse } from "next/server"
-import {
-  callSupabaseAuth,
-  createSessionResponse,
-  getSupabaseAuthError,
-} from "@/lib/supabase/server"
+import { getSupabaseAuthError, signUpWithEmail } from "@/lib/supabase/server"
 
 export async function POST(request: Request) {
   try {
@@ -32,30 +28,27 @@ export async function POST(request: Request) {
       )
     }
 
-    const { ok, status, payload } = await callSupabaseAuth("signup", {
-      method: "POST",
-      body: JSON.stringify({
-        email,
-        password,
-        data: {
-          full_name: name,
-        },
-      }),
-    })
+    const { data, error } = await signUpWithEmail(email, password, name)
 
-    if (!ok) {
+    if (error) {
       return NextResponse.json(
-        { error: getSupabaseAuthError(payload) },
-        { status }
+        { error: getSupabaseAuthError({ error: error.message } as any) },
+        { status: 400 }
       )
     }
 
-    return createSessionResponse(
-      payload,
-      payload.access_token
+    return NextResponse.json({
+      message: data.session
         ? "Account created and signed in successfully."
-        : "Account created. Check your email to confirm your account."
-    )
+        : "Account created. Check your email to confirm your account.",
+      user: data.user
+        ? {
+            id: data.user.id,
+            email: data.user.email,
+            userMetadata: data.user.user_metadata,
+          }
+        : null,
+    })
   } catch (error) {
     console.error("Signup route error", error)
 

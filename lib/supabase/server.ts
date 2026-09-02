@@ -1,3 +1,5 @@
+import { createServerClient } from "@supabase/ssr"
+import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 
 export type SupabaseAuthSession = {
@@ -28,7 +30,6 @@ function deriveSupabaseUrlFromDbUri(dbUri: string) {
     }
 
     const usernameParts = decodeURIComponent(parsedUri.username).split(".")
-
     if (usernameParts[1] && parsedUri.hostname.includes("supabase")) {
       return `https://${usernameParts[1]}.supabase.co`
     }
@@ -41,11 +42,13 @@ function deriveSupabaseUrlFromDbUri(dbUri: string) {
 
 export function getSupabaseServerConfig() {
   const supabaseUrl =
+    process.env.NEXT_PUBLIC_SUPABASE_URL ??
     process.env.SUPABASE_URL ??
     process.env.SUPABASE_PROJECT_URL ??
     (process.env.SUPABASE_DB_URI ? deriveSupabaseUrlFromDbUri(process.env.SUPABASE_DB_URI) : null)
 
   const supabaseKey =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
     process.env.SUPABASE_ANON_KEY ??
     process.env.SUPABASE_SERVICE_ROLE_KEY ??
     process.env.SUPABASE_SERVICE_KEY ??
@@ -61,86 +64,77 @@ export function getSupabaseServerConfig() {
   }
 }
 
-export async function callSupabaseAuth(
-  path: string,
-  init: RequestInit
-): Promise<{ ok: boolean; status: number; payload: SupabaseAuthPayload }> {
+export async function createSupabaseServerClient() {
+  const cookieStore = await cookies()
   const { url, key } = getSupabaseServerConfig()
-  const response = await fetch(`${url}/auth/v1/${path}`, {
-    ...init,
-    headers: {
-      apikey: key,
-      // allow the caller to pass custom headers via init.headers (e.g. Authorization)
-      ...(init.headers as Record<string, string> | undefined),
-      "Content-Type": "application/json",
+
+  return createServerClient(url, key, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll()
+      },
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value, options }) => {
+          cookieStore.set(name, value, options)
+        })
+      },
     },
   })
-  const payload = (await response.json().catch(() => ({}))) as SupabaseAuthPayload
+}
 
-  return {
-    ok: response.ok,
-    status: response.status,
-    payload,
-  }
+export async function signInWithPassword(email: string, password: string) {
+  const supabase = await createSupabaseServerClient()
+  return supabase.auth.signInWithPassword({ email, password })
+}
+
+export async function signUpWithEmail(email: string, password: string, fullName?: string) {
+  const supabase = await createSupabaseServerClient()
+  return supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: fullName ? { full_name: fullName } : undefined,
+    },
+  })
 }
 
 export function getSupabaseAuthError(payload: SupabaseAuthPayload) {
-  return (
-    payload.error_description ?? payload.msg ?? payload.message ?? payload.error ?? "Authentication request failed."
-  )
+  return payload.error_description ?? payload.msg ?? payload.message ?? payload.error ?? "Authentication request failed."
 }
 
-/**
- * Given an access token, return the Supabase user object or null.
- * This performs a server-side call to /auth/v1/user using the provided access token.
- */
 export async function getUserByAccessToken(accessToken?: string | null) {
-  if (!accessToken) return null
-  const { url, key } = getSupabaseServerConfig()
-  try {
-    const res = await fetch(`${url}/auth/v1/user`, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        apikey: key,
-      },
-      cache: "no-store",
-    })
-    if (!res.ok) return null
-    const user = (await res.json().catch(() => null)) as any
-    return user
-  } catch (e) {
-    return null
-  }
+  void accessToken
+  const supabase = await createSupabaseServerClient()
+  const { data, error } = await supabase.auth.getUser()
+
+  if (error || !data.user) return null
+  return data.user
 }
 
-/**
- * Refresh access token using the refresh token.
- * Returns the auth payload from Supabase (access_token, refresh_token, user, expires_in) or null.
- */
+export async function getSessionUser() {
+  const supabase = await createSupabaseServerClient()
+  const { data, error } = await supabase.auth.getUser()
+
+  if (error) return null
+  return data.user
+}
+
 export async function refreshAccessToken(refreshToken?: string | null) {
-  if (!refreshToken) return null
-  const { url, key } = getSupabaseServerConfig()
-  try {
-    const res = await fetch(`${url}/auth/v1/token?grant_type=refresh_token`, {
-      method: "POST",
-      headers: {
-        apikey: key,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ refresh_token: refreshToken }),
-      cache: "no-store",
-    })
-    if (!res.ok) return null
-    const payload = (await res.json().catch(() => null)) as SupabaseAuthPayload | null
-    return payload
-  } catch (e) {
-    return null
-  }
+  void refreshToken
+  const supabase = await createSupabaseServerClient()
+  const { data, error } = await supabase.auth.refreshSession({ refresh_token: refreshToken ?? "" })
+
+  if (error || !data.session) return null
+
+  return {
+    access_token: data.session.access_token,
+    refresh_token: data.session.refresh_token,
+    expires_in: data.session.expires_in,
+    user: data.user ?? undefined,
+  } as SupabaseAuthPayload
 }
 
 export function createSessionResponse(payload: SupabaseAuthPayload, fallbackMessage: string) {
-  console.log("returing session response")
-
   const response = NextResponse.json({
     message: fallbackMessage,
     user: payload.user
@@ -151,9 +145,6 @@ export function createSessionResponse(payload: SupabaseAuthPayload, fallbackMess
         }
       : null,
   })
-
-  console.log("from the create session response: ", "=".repeat(20))
-  console.log({payload})
 
   if (payload.access_token) {
     response.cookies.set("ezfinance-access-token", payload.access_token, {

@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { PasswordInput } from "@/components/password-input"
-import { useRouter } from "next/navigation"
 
 function GoogleIcon() {
   return (
@@ -49,12 +48,13 @@ export function LoginForm({
   onSwitchToSignup,
   onClose,
   ...props
-}: React.ComponentProps<"div"> & { onSwitchToSignup?: () => void; onClose?: () => void }) {
+}: React.ComponentProps<"div"> & {
+  onSwitchToSignup?: () => void
+  onClose?: () => void
+}) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-
-  const {replace} = useRouter()
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -116,8 +116,8 @@ export function LoginForm({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ redirectTo: `${window.location.origin}/auth/callback` }),
       })
+
       const data = (await response.json().catch(() => ({}))) as {
         url?: string
         error?: string
@@ -128,10 +128,6 @@ export function LoginForm({
         return
       }
 
-      // Debug log the provider url in the client console so we can trace issues
-      try { console.debug('Google authorize url:', data.url) } catch (e) {}
-
-      // navigate to provider
       window.location.assign(data.url)
     } catch (error) {
       setError(

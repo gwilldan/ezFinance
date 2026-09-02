@@ -1,9 +1,5 @@
 import { NextResponse } from "next/server"
-import {
-  callSupabaseAuth,
-  createSessionResponse,
-  getSupabaseAuthError,
-} from "@/lib/supabase/server"
+import { getSupabaseAuthError, signInWithPassword } from "@/lib/supabase/server"
 
 export async function POST(request: Request) {
   try {
@@ -21,23 +17,25 @@ export async function POST(request: Request) {
       )
     }
 
-    const { ok, status, payload } = await callSupabaseAuth(
-      "token?grant_type=password",
-      {
-        method: "POST",
-        body: JSON.stringify({ email, password }),
-      }
-    )
+    const { data, error } = await signInWithPassword(email, password)
 
-    if (!ok) {
+    if (error) {
       return NextResponse.json(
-        { error: getSupabaseAuthError(payload) },
-        { status }
+        { error: getSupabaseAuthError({ error: error.message } as any) },
+        { status: 400 }
       )
     }
 
-    return createSessionResponse(payload, "Signed in successfully.")
-
+    return NextResponse.json({
+      message: "Signed in successfully.",
+      user: data.user
+        ? {
+            id: data.user.id,
+            email: data.user.email,
+            userMetadata: data.user.user_metadata,
+          }
+        : null,
+    })
   } catch (error) {
     console.error("Login route error", error)
 
