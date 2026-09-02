@@ -7,7 +7,8 @@ export async function POST(request: NextRequest) {
       redirectTo?: string
     }
     const { url } = getSupabaseServerConfig()
-    const redirectTo = body.redirectTo ?? request.nextUrl.origin
+    // redirect to a client callback that will post the tokens to the server
+    const redirectTo = body.redirectTo ?? `${request.nextUrl.origin}/auth/callback`
     const authUrl = new URL(`${url}/auth/v1/authorize`)
 
     authUrl.searchParams.set("provider", "google")
