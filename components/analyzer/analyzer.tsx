@@ -2,13 +2,23 @@
 
 import type { StatementReport } from "@/lib/bank-statement/schema"
 import { useRouter } from "next/navigation"
-import { ChangeEvent, useRef, useState } from "react"
+import { ChangeEvent, useEffect, useRef, useState } from "react"
 import { UploadStateCard } from "./upload-state-card"
 
 type UploadResponse = {
   report?: StatementReport
   error?: string
 }
+
+const LOADING_STAGES = [
+  "Uploading your account statement...",
+  "Reading your statement pages...",
+  "Analyzing your transactions...",
+  "Categorizing your spending...",
+  "Plotting your financial plan...",
+]
+
+const LOADING_STAGE_INTERVAL = 30_000
 
 export default function Analyzer() {
   const router = useRouter()
@@ -19,8 +29,25 @@ export default function Analyzer() {
   >("idle")
   const [fileName, setFileName] = useState("Customer Statement.pdf")
   const [error, setError] = useState<string | null>(null)
-  const [uploadProgress, setUploadProgress] = useState(0)
+  const [loadingStage, setLoadingStage] = useState(0)
   const [hasAnalyzed, setHasAnalyzed] = useState(false)
+
+  useEffect(() => {
+    if (uploadState !== "uploading") return
+
+    const startedAt = Date.now()
+    const timer = window.setInterval(() => {
+      const elapsed = Date.now() - startedAt
+      setLoadingStage(
+        Math.min(
+          LOADING_STAGES.length - 1,
+          Math.floor(elapsed / LOADING_STAGE_INTERVAL)
+        )
+      )
+    }, 1_000)
+
+    return () => window.clearInterval(timer)
+  }, [uploadState])
 
   async function handleFileUpload(file: File) {
     if (file.type !== "application/pdf") {
@@ -33,17 +60,14 @@ export default function Analyzer() {
     setFileName(file.name || "Customer Statement.pdf")
     setUploadState("uploading")
     setError(null)
-    setUploadProgress(0)
+    setLoadingStage(0)
     setIsUploading(true)
 
     try {
       const formData = new FormData()
       formData.append("file", file)
 
-      const data = await uploadStatement(formData, (progress) =>
-        setUploadProgress(Math.round(progress * 0.75))
-      )
-      setUploadProgress(88)
+      const data = await uploadStatement(formData)
 
       if (!data.report)
         throw new Error(data.error ?? "The analysis response was incomplete.")
@@ -53,7 +77,6 @@ export default function Analyzer() {
         JSON.stringify(data.report)
       )
       window.dispatchEvent(new Event("ezfinance:report-updated"))
-      setUploadProgress(100)
       setHasAnalyzed(true)
       setUploadState("success")
       router.push("/result")
@@ -111,15 +134,12 @@ export default function Analyzer() {
             }
             heading={
               uploadState === "uploading"
-                ? uploadProgress < 76
-                  ? "Uploading your statement..."
-                  : "Analyzing your statement..."
+                ? LOADING_STAGES[loadingStage]
                 : uploadState === "success"
                   ? "Statement ready"
                   : "Something went wrong"
             }
             error={error ?? undefined}
-            progress={uploadProgress}
           />
         </div>
       )}
@@ -193,19 +213,13 @@ export default function Analyzer() {
   )
 }
 
-function uploadStatement(
-  formData: FormData,
-  onProgress: (progress: number) => void
-): Promise<UploadResponse> {
+function uploadStatement(formData: FormData): Promise<UploadResponse> {
   return new Promise((resolve, reject) => {
     const request = new XMLHttpRequest()
     request.open("POST", "/api/upload")
     request.responseType = "json"
-    request.timeout = 120_000
+    request.timeout = 300_000
 
-    request.upload.addEventListener("progress", (event) => {
-      if (event.lengthComputable) onProgress((event.loaded / event.total) * 100)
-    })
     request.addEventListener("load", () => {
       const data = (request.response ?? {}) as UploadResponse
       if (request.status >= 200 && request.status < 300) {

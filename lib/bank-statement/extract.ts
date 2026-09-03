@@ -3,7 +3,7 @@ import { CATEGORIES, type Category, type Transaction } from "./schema"
 
 const DEFAULT_DASHSCOPE_BASE_URL =
   "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
-const DEFAULT_MODEL = "qwen3.7"
+const DEFAULT_MODEL = "qwen3.7-plus"
 
 export async function extractTransactions(
   text: string
@@ -16,6 +16,7 @@ export async function extractTransactions(
 }
 
 async function extractWithQwen(text: string): Promise<Transaction[]> {
+
   const client = new OpenAI({
     apiKey: process.env.DASHSCOPE_API_KEY,
     baseURL: process.env.DASHSCOPE_BASE_URL || DEFAULT_DASHSCOPE_BASE_URL,
@@ -36,6 +37,8 @@ async function extractWithQwen(text: string): Promise<Transaction[]> {
       },
     ],
   })
+
+  console.log("reponse", response)
 
   const content = response.choices[0]?.message?.content
   if (!content) throw new Error("Qwen returned an empty extraction response.")

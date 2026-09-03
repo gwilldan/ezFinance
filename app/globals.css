@@ -78,3 +78,39 @@
 button {
   cursor: pointer;
 }
+
+@keyframes upload-progress {
+  0% {
+    transform: translateX(-160%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
+}
+
+@keyframes upload-copy {
+  from {
+    opacity: 0;
+    transform: translateY(0.35rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-upload-progress {
+  animation: upload-progress 1.6s ease-in-out infinite;
+}
+
+.animate-upload-copy {
+  display: inline-block;
+  animation: upload-copy 400ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-upload-progress,
+  .animate-upload-copy {
+    animation: none;
+  }
+}
