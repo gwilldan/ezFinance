@@ -1,19 +1,17 @@
 "use client"
 
 import {
-  Bell,
   ChevronDown,
   CreditCard,
   FileText,
   LogOut,
-  Search,
   Settings,
   Sparkles,
 } from "lucide-react"
 import EzFinanceIcon from "../ui/icon"
 import { User } from "@/lib/supabase/server"
 import Image from "next/image"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 const navItems = ["Home", "Pricing"]
 
@@ -35,8 +33,25 @@ function getInitials(name: string) {
 
 export function UserNav({ user }: { user: User }) {
   const [isOpen, setIsOpen] = useState(false)
+  const wrapperRef = useRef<HTMLDivElement | null>(null)
+  const triggerRef = useRef<HTMLButtonElement | null>(null)
   const fullName = String(user.user_metadata.full_name ?? "User")
   const avatarUrl = typeof user.user_metadata.avatar_url === "string" ? user.user_metadata.avatar_url : null
+
+  useEffect(() => {
+    function handlePointerDown(event: MouseEvent) {
+      const target = event.target as Node
+
+      if (wrapperRef.current?.contains(target) || triggerRef.current?.contains(target)) {
+        return
+      }
+
+      setIsOpen(false)
+    }
+
+    document.addEventListener("mousedown", handlePointerDown)
+    return () => document.removeEventListener("mousedown", handlePointerDown)
+  }, [])
 
   async function handleSignOut() {
     try {
@@ -77,8 +92,9 @@ export function UserNav({ user }: { user: User }) {
           ))}
         </section>
 
-        <div className="relative">
+        <div ref={wrapperRef} className="relative">
           <button
+            ref={triggerRef}
             type="button"
             onClick={() => setIsOpen((prev) => !prev)}
             aria-expanded={isOpen}
