@@ -1,7 +1,5 @@
+import { ReportPage } from "@/components/report/report-page"
 
-
-export default function page() {
-  return (
-    <div>page</div>
-  )
+export default function ResultPage() {
+  return <ReportPage />
 }

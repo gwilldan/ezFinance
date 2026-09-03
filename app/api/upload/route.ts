@@ -1,4 +1,6 @@
 import { getUserByAccessToken } from "@/lib/supabase/server"
+import { buildReport } from "@/lib/bank-statement/build-report"
+import { extractTransactions } from "@/lib/bank-statement/extract"
 import { PDFParse } from "pdf-parse"
 import { NextRequest, NextResponse } from "next/server"
 
@@ -9,7 +11,10 @@ export async function POST(request: NextRequest) {
     const user = await getUserByAccessToken()
 
     if (!user) {
-      return NextResponse.json({ error: "Authentication required." }, { status: 401 })
+      return NextResponse.json(
+        { error: "Authentication required." },
+        { status: 401 }
+      )
     }
 
     const formData = await request.formData()
@@ -22,16 +27,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "File must be a PDF" }, { status: 400 })
     }
 
-    const parser = new PDFParse({ data: new Uint8Array(await file.arrayBuffer()) })
+    const parser = new PDFParse({
+      data: new Uint8Array(await file.arrayBuffer()),
+    })
 
     try {
       const result = await parser.getText()
-      const normalizedText = result.text
+      const extraction = await extractTransactions(result.text)
+
+      if (extraction.transactions.length === 0) {
+        return NextResponse.json(
+          {
+            error:
+              "We could not find transaction rows in this PDF. Try a text-based statement or an OCR-enabled workflow.",
+          },
+          { status: 422 }
+        )
+      }
+
+      const report = buildReport(extraction.transactions, {
+        fileName: file.name || "Bank statement.pdf",
+        pages: result.total,
+      })
 
       return NextResponse.json({
-        text: normalizedText,
-        isLikelyScanned: normalizedText.length < 100,
-        numPages: result.total,
+        report,
+        extractionSource: extraction.source,
       })
     } finally {
       await parser.destroy()
@@ -39,7 +60,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("PDF upload error", error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to process PDF" },
+      {
+        error: error instanceof Error ? error.message : "Failed to process PDF",
+      },
       { status: 500 }
     )
   }

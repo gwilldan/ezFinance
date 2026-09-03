@@ -1,8 +1,8 @@
 import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["pdf-parse"],
-    images: {
+  serverExternalPackages: ["pdf-parse", "openai"],
+  images: {
     remotePatterns: [
       {
         protocol: "https",

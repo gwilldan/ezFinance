@@ -4,10 +4,20 @@ type UploadStateCardProps = {
   status: "uploading" | "success" | "error"
   error?: string
   resultText?: string
+  progress?: number
 }
 
-export function UploadStateCard({ fileName, heading, status, error, resultText }: UploadStateCardProps) {
+export function UploadStateCard({
+  fileName,
+  heading,
+  status,
+  error,
+  resultText,
+  progress = 0,
+}: UploadStateCardProps) {
   const isLoading = status === "uploading"
+  const progressValue =
+    status === "success" ? 100 : Math.min(99, Math.max(0, progress))
 
   return (
     <>
@@ -17,24 +27,29 @@ export function UploadStateCard({ fileName, heading, status, error, resultText }
             {fileName || "Customer Statement.pdf"}
           </div>
 
-          <div className="mt-10 text-center text-[clamp(2.5rem,4vw,4rem)] font-medium leading-none tracking-[-0.07em] text-[#4b5d72]">
+          <div className="mt-10 text-center text-[clamp(2.5rem,4vw,4rem)] leading-none font-medium tracking-[-0.07em] text-[#4b5d72]">
             {heading}
           </div>
 
-          <div className="mt-10 h-1.5 w-full overflow-hidden rounded-full bg-[#d3d6d9]">
+          <div
+            className="mt-10 h-2 w-full overflow-hidden rounded-full bg-[#d3d6d9]"
+            role="progressbar"
+            aria-label="Upload progress"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progressValue}
+          >
             <div
-              className={`h-full rounded-full bg-[#7b8795] ${isLoading ? "loading-bar" : "w-full"}`}
-              style={
-                isLoading
-                  ? {
-                      width: "32%",
-                    }
-                  : {
-                      width: "100%",
-                    }
-              }
+              className={`h-full rounded-full bg-[#7b8795] transition-[width] duration-300 ${isLoading ? "animate-pulse" : ""}`}
+              style={{ width: `${progressValue}%` }}
             />
           </div>
+
+          {isLoading ? (
+            <div className="mt-3 text-center text-xs text-slate-500">
+              {Math.round(progressValue)}%
+            </div>
+          ) : null}
 
           {status === "error" && error ? (
             <div className="mt-8 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700">
@@ -43,34 +58,12 @@ export function UploadStateCard({ fileName, heading, status, error, resultText }
           ) : null}
 
           {status === "success" && resultText ? (
-            <div className="mt-8 max-h-56 overflow-auto rounded-xl border border-[#dfe3e7] bg-white/60 p-4 text-left text-sm leading-6 text-slate-700 whitespace-pre-wrap">
+            <div className="mt-8 max-h-56 overflow-auto rounded-xl border border-[#dfe3e7] bg-white/60 p-4 text-left text-sm leading-6 whitespace-pre-wrap text-slate-700">
               {resultText}
             </div>
           ) : null}
         </div>
       </div>
-
-      <style jsx>{`
-        .loading-bar {
-          animation: loadingBar 1.6s ease-in-out infinite;
-          transform-origin: left center;
-        }
-
-        @keyframes loadingBar {
-          0% {
-            transform: translateX(-12%) scaleX(0.45);
-            opacity: 0.5;
-          }
-          50% {
-            transform: translateX(63%) scaleX(1);
-            opacity: 1;
-          }
-          100% {
-            transform: translateX(145%) scaleX(0.5);
-            opacity: 0.5;
-          }
-        }
-      `}</style>
     </>
   )
 }
