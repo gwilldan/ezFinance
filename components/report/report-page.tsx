@@ -83,7 +83,7 @@ function ReportContent({ report }: { report: StatementReport }) {
     <main className="min-h-screen bg-[#f7f8fa] px-5 py-8 text-slate-800 sm:px-8 lg:px-12">
       <div className="mx-auto max-w-6xl">
         <Link
-          href="/analyzer"
+          href="/"
           className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-900"
         >
           <ChevronLeft className="h-4 w-4" /> Upload another statement

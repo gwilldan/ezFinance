@@ -33,9 +33,9 @@ export async function POST(request: NextRequest) {
 
     try {
       const result = await parser.getText()
-      const extraction = await extractTransactions(result.text)
+      const transactions = await extractTransactions(result.text)
 
-      if (extraction.transactions.length === 0) {
+      if (transactions.length === 0) {
         return NextResponse.json(
           {
             error:
@@ -45,15 +45,12 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      const report = buildReport(extraction.transactions, {
+      const report = buildReport(transactions, {
         fileName: file.name || "Bank statement.pdf",
         pages: result.total,
       })
 
-      return NextResponse.json({
-        report,
-        extractionSource: extraction.source,
-      })
+      return NextResponse.json({ report })
     } finally {
       await parser.destroy()
     }
