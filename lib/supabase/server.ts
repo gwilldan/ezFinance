@@ -45,7 +45,9 @@ export function getSupabaseServerConfig() {
     process.env.NEXT_PUBLIC_SUPABASE_URL ??
     process.env.SUPABASE_URL ??
     process.env.SUPABASE_PROJECT_URL ??
-    (process.env.SUPABASE_DB_URI ? deriveSupabaseUrlFromDbUri(process.env.SUPABASE_DB_URI) : null)
+    (process.env.SUPABASE_DB_URI
+      ? deriveSupabaseUrlFromDbUri(process.env.SUPABASE_DB_URI)
+      : null)
 
   const supabaseKey =
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
@@ -100,7 +102,11 @@ export async function signInWithPassword(email: string, password: string) {
   return supabase.auth.signInWithPassword({ email, password })
 }
 
-export async function signUpWithEmail(email: string, password: string, fullName?: string) {
+export async function signUpWithEmail(
+  email: string,
+  password: string,
+  fullName?: string
+) {
   const supabase = await createSupabaseRouteClient()
   return supabase.auth.signUp({
     email,
@@ -112,7 +118,13 @@ export async function signUpWithEmail(email: string, password: string, fullName?
 }
 
 export function getSupabaseAuthError(payload: SupabaseAuthPayload) {
-  return payload.error_description ?? payload.msg ?? payload.message ?? payload.error ?? "Authentication request failed."
+  return (
+    payload.error_description ??
+    payload.msg ??
+    payload.message ??
+    payload.error ??
+    "Authentication request failed."
+  )
 }
 
 export async function getUserByAccessToken(accessToken?: string | null) {
@@ -132,8 +144,6 @@ export async function getSessionUser() {
   return data.user
 }
 export type User = NonNullable<Awaited<ReturnType<typeof getSessionUser>>>
-
-
 
 export async function signOutUser() {
   const supabase = await createSupabaseRouteClient()
@@ -165,7 +175,9 @@ export function clearAuthCookies(response: NextResponse) {
 export async function refreshAccessToken(refreshToken?: string | null) {
   void refreshToken
   const supabase = await createSupabaseServerClient()
-  const { data, error } = await supabase.auth.refreshSession({ refresh_token: refreshToken ?? "" })
+  const { data, error } = await supabase.auth.refreshSession({
+    refresh_token: refreshToken ?? "",
+  })
 
   if (error || !data.session) return null
 
@@ -177,7 +189,10 @@ export async function refreshAccessToken(refreshToken?: string | null) {
   } as SupabaseAuthPayload
 }
 
-export function createSessionResponse(payload: SupabaseAuthPayload, fallbackMessage: string) {
+export function createSessionResponse(
+  payload: SupabaseAuthPayload,
+  fallbackMessage: string
+) {
   const response = NextResponse.json({
     message: fallbackMessage,
     user: payload.user

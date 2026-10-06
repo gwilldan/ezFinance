@@ -1,6 +1,8 @@
 "use client"
 
-import type { StatementReport, Transaction } from "@/lib/bank-statement/schema"
+import type { StatementReport } from "@/lib/bank-statement/schema"
+import { formatMoney, formatPercent } from "@/lib/format"
+import { useStoredReport } from "@/lib/report-store"
 import {
   AlertTriangle,
   ArrowDownRight,
@@ -12,18 +14,12 @@ import {
   WalletCards,
 } from "lucide-react"
 import Link from "next/link"
-import type { ReactNode } from "react"
-import { useSyncExternalStore } from "react"
-
-const REPORT_STORAGE_KEY = "ezfinance:last-report"
-const REPORT_UPDATED_EVENT = "ezfinance:report-updated"
+import { useState, type ReactNode } from "react"
+import { ChatSidebar } from "./chat-sidebar"
+import { TransactionsTable } from "./transactions-table"
 
 export function ReportPage() {
-  const report = useSyncExternalStore(
-    subscribeToReport,
-    getStoredReport,
-    getServerReport
-  )
+  const report = useStoredReport()
 
   if (!report) {
     return (
@@ -37,7 +33,7 @@ export function ReportPage() {
             Upload a statement first and your completed report will appear here.
           </p>
           <Link
-            href="/analyzer"
+            href="/"
             className="mt-7 inline-flex rounded-xl bg-slate-900 px-5 py-3 text-sm font-medium text-white"
           >
             Analyze a statement
@@ -50,37 +46,15 @@ export function ReportPage() {
   return <ReportContent report={report} />
 }
 
-let storedReport: StatementReport | null | undefined
-let storedReportJson: string | null | undefined
-
-function subscribeToReport(callback: () => void) {
-  window.addEventListener(REPORT_UPDATED_EVENT, callback)
-  return () => window.removeEventListener(REPORT_UPDATED_EVENT, callback)
-}
-
-function getStoredReport(): StatementReport | null {
-  const value = window.sessionStorage.getItem(REPORT_STORAGE_KEY)
-  if (value === storedReportJson) return storedReport ?? null
-
-  storedReportJson = value
-  try {
-    storedReport = value ? (JSON.parse(value) as StatementReport) : null
-  } catch {
-    storedReport = null
-  }
-  return storedReport
-}
-
-function getServerReport(): null {
-  return null
-}
-
 function ReportContent({ report }: { report: StatementReport }) {
   const { snapshot } = report
   const currency = report.currency || "NGN"
+  const [chatOpen, setChatOpen] = useState(false)
 
   return (
-    <main className="min-h-screen bg-[#f7f8fa] px-5 py-8 text-slate-800 sm:px-8 lg:px-12">
+    <main
+      className={`min-h-screen bg-[#f7f8fa] px-5 py-8 text-slate-800 sm:px-8 lg:px-12 ${chatOpen ? "xl:pr-[460px]" : ""}`}
+    >
       <div className="mx-auto max-w-6xl">
         <Link
           href="/"
@@ -294,32 +268,10 @@ function ReportContent({ report }: { report: StatementReport }) {
             title="Recent transactions"
             subtitle={`${report.activity.activeDays} active day${report.activity.activeDays === 1 ? "" : "s"} · ${report.transactions.length} total transaction${report.transactions.length === 1 ? "" : "s"}`}
           />
-          <div className="mt-5 overflow-x-auto">
-            <table className="w-full min-w-[620px] text-left text-sm">
-              <thead className="border-b border-slate-100 text-xs tracking-wider text-slate-400 uppercase">
-                <tr>
-                  <th className="pb-3 font-medium">Date</th>
-                  <th className="pb-3 font-medium">Description</th>
-                  <th className="pb-3 font-medium">Category</th>
-                  <th className="pb-3 text-right font-medium">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {report.transactions.slice(0, 12).map((transaction, index) => (
-                  <TransactionRow
-                    key={`${transaction.date}-${transaction.description}-${index}`}
-                    transaction={transaction}
-                    currency={currency}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {report.transactions.length > 12 ? (
-            <p className="mt-4 text-center text-xs text-slate-400">
-              Showing the first 12 transactions from your report.
-            </p>
-          ) : null}
+          <TransactionsTable
+            transactions={report.transactions}
+            currency={currency}
+          />
         </section>
 
         {report.duplicates.length ? (
@@ -335,6 +287,8 @@ function ReportContent({ report }: { report: StatementReport }) {
           </div>
         ) : null}
       </div>
+
+      <ChatSidebar report={report} open={chatOpen} onOpenChange={setChatOpen} />
     </main>
   )
 }
@@ -416,52 +370,8 @@ function HealthLine({
   )
 }
 
-function TransactionRow({
-  transaction,
-  currency,
-}: {
-  transaction: Transaction
-  currency: string
-}) {
-  const isCredit = transaction.type === "credit"
-  return (
-    <tr className="border-b border-slate-50 last:border-0">
-      <td className="py-4 text-slate-400">{formatDate(transaction.date)}</td>
-      <td className="py-4 font-medium text-slate-700">
-        {transaction.merchant || transaction.description}
-      </td>
-      <td className="py-4 text-slate-500">{transaction.category}</td>
-      <td
-        className={`py-4 text-right font-semibold ${isCredit ? "text-emerald-600" : "text-slate-700"}`}
-      >
-        {isCredit ? "+" : "−"}
-        {formatMoney(transaction.amount, currency)}
-      </td>
-    </tr>
-  )
-}
-
 function EmptyState({ text }: { text: string }) {
   return (
     <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">{text}</p>
   )
-}
-function formatMoney(value: number, currency: string) {
-  return new Intl.NumberFormat("en-NG", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 0,
-  }).format(value || 0)
-}
-function formatPercent(value: number) {
-  return `${Math.round((value || 0) * 1000) / 10}%`
-}
-function formatDate(value: string) {
-  const date = new Date(`${value.slice(0, 10)}T00:00:00`)
-  return Number.isNaN(date.getTime())
-    ? value
-    : new Intl.DateTimeFormat("en-NG", {
-        month: "short",
-        day: "numeric",
-      }).format(date)
 }

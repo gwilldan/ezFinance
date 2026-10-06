@@ -4,9 +4,6 @@ import { extractTransactions } from "@/lib/bank-statement/extract"
 import { PDFParse } from "pdf-parse"
 import { NextRequest, NextResponse } from "next/server"
 
-// enforce upload route to only run on node environment
-export const runtime = "nodejs"
-
 export async function POST(request: NextRequest) {
   try {
     const user = await getUserByAccessToken()
@@ -34,8 +31,9 @@ export async function POST(request: NextRequest) {
 
     try {
       const result = await parser.getText()
-      console.log("parsed result", result)
-      const transactions = await extractTransactions(result.text)
+      const transactions = await extractTransactions(
+        result.pages.map((page) => page.text)
+      )
 
       if (transactions.length === 0) {
         return NextResponse.json(

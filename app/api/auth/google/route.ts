@@ -18,7 +18,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (!data.url) {
-      return NextResponse.json({ error: "Google signup URL was not created." }, { status: 400 })
+      return NextResponse.json(
+        { error: "Google signup URL was not created." },
+        { status: 400 }
+      )
     }
 
     return NextResponse.json({ url: data.url })

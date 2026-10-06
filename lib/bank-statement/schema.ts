@@ -27,7 +27,6 @@ export type Transaction = {
   type: "debit" | "credit"
   balance?: number
   category: Category
-  isRefund?: boolean
 }
 
 export type Snapshot = {

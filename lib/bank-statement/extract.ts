@@ -1,85 +1,122 @@
-import OpenAI from "openai"
+import { chatCompletion } from "@/lib/llm"
 import { CATEGORIES, type Category, type Transaction } from "./schema"
 
-const DEFAULT_DASHSCOPE_BASE_URL =
-  "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
-const DEFAULT_MODEL = "qwen3.7-plus"
+// Each chunk is one parallel LLM call. Smaller chunks mean less output per
+// call (output tokens dominate latency), at the cost of more requests.
+const CHUNK_CHARS = 6_000
+const CONCURRENCY = 8
 
-type DashScopeChatRequest =
-  OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming & {
-    enable_thinking: false
-  }
+const SYSTEM_PROMPT = `You extract bank statement transactions. Reply with JSON only, in this shape:
+{"rows":[[date,description,merchant,amount,type,balance,category]]}
+- date: "YYYY-MM-DD"
+- description: the transaction narration, trimmed to 80 characters
+- merchant: short clean counterparty name, e.g. "Uber", "MTN", "John Doe"
+- amount: positive number
+- type: "D" for money out, "C" for money in
+- balance: balance after the transaction as a number, or null
+- category: one of ${CATEGORIES.join(", ")}
+Do not invent rows. Skip page headers, column titles, totals, account details, and opening/closing balance lines. Categorize credits as Income unless they are clearly transfers or refunds. Keep the statement order. If there are no transactions, return {"rows":[]}.`
 
 export async function extractTransactions(
-  text: string
+  pages: string[]
 ): Promise<Transaction[]> {
-  if (!process.env.DASHSCOPE_API_KEY) {
-    throw new Error("DASHSCOPE_API_KEY is not configured.")
-  }
-
-  return extractWithQwen(text)
+  const chunks = chunkPages(pages)
+  const results = await mapWithConcurrency(chunks, CONCURRENCY, (chunk) =>
+    extractChunk(chunk).catch(() => extractChunk(chunk))
+  )
+  return results.flat()
 }
 
-async function extractWithQwen(text: string): Promise<Transaction[]> {
-  const client = new OpenAI({
-    apiKey: process.env.DASHSCOPE_API_KEY,
-    baseURL: process.env.DASHSCOPE_BASE_URL || DEFAULT_DASHSCOPE_BASE_URL,
-  })
-
-  const request: DashScopeChatRequest = {
-    model: process.env.DASHSCOPE_MODEL || DEFAULT_MODEL,
+async function extractChunk(text: string): Promise<Transaction[]> {
+  const response = await chatCompletion({
     temperature: 0,
     response_format: { type: "json_object" },
-    enable_thinking: false,
     messages: [
-      {
-        role: "system",
-        content: `You extract bank statement transactions. Return only valid JSON in this shape: {"transactions":[{"date":"YYYY-MM-DD or original date","description":"...","merchant":"...","amount":123.45,"type":"debit or credit","balance":123.45,"category":"one of ${CATEGORIES.join(", ")}","isRefund":false}]}. Amount must be positive; type carries the direction. Do not invent rows, balances, or dates. Ignore page headers, totals, account numbers, and opening/closing balance summaries. Categorize credits as Income unless they are clearly transfers or refunds.`,
-      },
-      {
-        role: "user",
-        content: `Extract every transaction from this statement text. Preserve the transaction order and use the exact description where possible.\n\n${text.slice(0, 100_000)}`,
-      },
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: text },
     ],
-  }
-
-  const response = await client.chat.completions.create(request)
-
-  console.log("reponse", response)
+  })
 
   const content = response.choices[0]?.message?.content
-  if (!content) throw new Error("Qwen returned an empty extraction response.")
-
-  const parsed: unknown = JSON.parse(content)
-  return normalizeTransactions(parsed)
+  if (!content) throw new Error("The model returned an empty extraction.")
+  return normalizeRows(JSON.parse(content))
 }
 
-function normalizeTransactions(value: unknown): Transaction[] {
-  if (!isRecord(value) || !Array.isArray(value.transactions)) return []
+/** Packs whole pages into chunks, splitting only pages that are too large. */
+function chunkPages(pages: string[]): string[] {
+  const chunks: string[] = []
+  let current = ""
 
-  return value.transactions.flatMap((item) => {
-    if (!isRecord(item)) return []
-    const description = asString(item.description)
-    const date = asString(item.date)
-    const amount = Math.abs(asNumber(item.amount))
+  const push = (text: string) => {
+    if (current && current.length + text.length > CHUNK_CHARS) {
+      chunks.push(current)
+      current = ""
+    }
+    current += current ? `\n${text}` : text
+  }
+
+  for (const page of pages.map(compactText).filter(Boolean)) {
+    if (page.length <= CHUNK_CHARS) {
+      push(page)
+      continue
+    }
+    for (const line of page.split("\n")) push(line)
+  }
+  if (current) chunks.push(current)
+  return chunks
+}
+
+function compactText(text: string): string {
+  return text
+    .split("\n")
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .join("\n")
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results = new Array<R>(items.length)
+  let next = 0
+  const worker = async () => {
+    while (next < items.length) {
+      const index = next++
+      results[index] = await fn(items[index])
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, worker)
+  )
+  return results
+}
+
+function normalizeRows(value: unknown): Transaction[] {
+  if (!isRecord(value) || !Array.isArray(value.rows)) return []
+
+  return value.rows.flatMap((row) => {
+    if (!Array.isArray(row)) return []
+    const [rawDate, rawDescription, rawMerchant, rawAmount, rawType] = row
+    const description = asString(rawDescription)
+    const date = asString(rawDate)
+    const amount = Math.abs(asNumber(rawAmount))
     if (!description || !date || !Number.isFinite(amount) || amount === 0)
       return []
 
-    const type = item.type === "credit" ? "credit" : "debit"
-    const category = normalizeCategory(item.category, type)
-    const balance =
-      item.balance === undefined ? undefined : asNumber(item.balance)
+    const type = rawType === "C" ? "credit" : "debit"
+    const balance = asNumber(row[5])
 
     return [
       {
         date,
         description,
-        merchant: asString(item.merchant) || normalizeMerchant(description),
+        merchant: asString(rawMerchant) || normalizeMerchant(description),
         amount,
         type,
-        category,
+        category: normalizeCategory(row[6], type),
         ...(Number.isFinite(balance) ? { balance } : {}),
-        ...(item.isRefund === true ? { isRefund: true } : {}),
       },
     ]
   })
@@ -95,8 +132,7 @@ function normalizeCategory(
     )
     if (match) return match
   }
-  if (type === "credit") return "Income"
-  return "Other"
+  return type === "credit" ? "Income" : "Other"
 }
 
 function normalizeMerchant(description: string): string {
@@ -114,7 +150,8 @@ function asString(value: unknown): string {
 
 function asNumber(value: unknown): number {
   if (typeof value === "number") return value
-  if (typeof value === "string") return Number(value.replace(/[^\d.+-]/g, ""))
+  if (typeof value === "string" && value.trim())
+    return Number(value.replace(/[^\d.+-]/g, ""))
   return Number.NaN
 }
 

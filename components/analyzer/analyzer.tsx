@@ -1,6 +1,7 @@
 "use client"
 
 import type { StatementReport } from "@/lib/bank-statement/schema"
+import { saveReport } from "@/lib/report-store"
 import { useRouter } from "next/navigation"
 import { ChangeEvent, useEffect, useRef, useState } from "react"
 import { UploadStateCard } from "./upload-state-card"
@@ -18,12 +19,11 @@ const LOADING_STAGES = [
   "Plotting your financial plan...",
 ]
 
-const LOADING_STAGE_INTERVAL = 30_000
+const LOADING_STAGE_INTERVAL = 8_000
 
 export default function Analyzer() {
   const router = useRouter()
   const inputRef = useRef<HTMLInputElement | null>(null)
-  const [isUploading, setIsUploading] = useState(false)
   const [uploadState, setUploadState] = useState<
     "idle" | "uploading" | "success" | "error"
   >("idle")
@@ -61,7 +61,6 @@ export default function Analyzer() {
     setUploadState("uploading")
     setError(null)
     setLoadingStage(0)
-    setIsUploading(true)
 
     try {
       const formData = new FormData()
@@ -72,11 +71,7 @@ export default function Analyzer() {
       if (!data.report)
         throw new Error(data.error ?? "The analysis response was incomplete.")
 
-      window.sessionStorage.setItem(
-        "ezfinance:last-report",
-        JSON.stringify(data.report)
-      )
-      window.dispatchEvent(new Event("ezfinance:report-updated"))
+      saveReport(data.report)
       setHasAnalyzed(true)
       setUploadState("success")
       router.push("/result")
@@ -86,7 +81,6 @@ export default function Analyzer() {
         uploadError instanceof Error ? uploadError.message : "Upload failed."
       )
     } finally {
-      setIsUploading(false)
       if (inputRef.current) {
         inputRef.current.value = ""
       }
@@ -116,7 +110,6 @@ export default function Analyzer() {
             onClick={() => inputRef.current?.click()}
             className="mx-auto rounded-xl bg-slate-900 px-10 py-4 text-white shadow-inner hover:opacity-95"
             aria-label="Analyze my statement"
-            disabled={isUploading}
           >
             Analyze my statement
           </button>

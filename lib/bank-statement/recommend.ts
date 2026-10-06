@@ -1,3 +1,4 @@
+import { formatMoney } from "@/lib/format"
 import type {
   CategoryBreakdown,
   Recommendation,
@@ -8,8 +9,10 @@ import type {
 export function generateRecommendations(
   snapshot: Snapshot,
   categories: CategoryBreakdown[],
-  subscriptions: Subscription[]
+  subscriptions: Subscription[],
+  currency: string
 ): Recommendation[] {
+  const formatAmount = (amount: number) => formatMoney(amount, currency)
   const recommendations: Recommendation[] = []
   const dining = categories.find((item) => item.category === "Dining Out")
   const shopping = categories.find((item) => item.category === "Shopping")
@@ -48,12 +51,4 @@ export function generateRecommendations(
   }
 
   return recommendations.sort((a, b) => b.impact - a.impact).slice(0, 4)
-}
-
-function formatAmount(amount: number): string {
-  return new Intl.NumberFormat("en-NG", {
-    style: "currency",
-    currency: "NGN",
-    maximumFractionDigits: 0,
-  }).format(amount)
 }

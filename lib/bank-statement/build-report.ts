@@ -13,6 +13,7 @@ export function buildReport(
   transactions: Transaction[],
   metadata: { fileName: string; pages: number; currency?: string }
 ): StatementReport {
+  const currency = metadata.currency ?? "NGN"
   const snapshot = buildSnapshot(transactions)
   const categories = buildCategoryBreakdown(transactions)
   const subscriptions = detectSubscriptions(transactions)
@@ -30,7 +31,7 @@ export function buildReport(
   return {
     fileName: metadata.fileName,
     pages: metadata.pages,
-    currency: metadata.currency ?? "NGN",
+    currency,
     statementPeriod: formatPeriod(dates),
     generatedAt: new Date().toISOString(),
     activity: {
@@ -49,7 +50,8 @@ export function buildReport(
     recommendations: generateRecommendations(
       snapshot,
       categories,
-      subscriptions
+      subscriptions,
+      currency
     ),
     transactions,
   }
