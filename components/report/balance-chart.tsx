@@ -12,7 +12,6 @@ import { compactNumber, GRID_COLOR, TOOLTIP } from "./chart-setup"
 import { Segmented } from "./segmented"
 
 const LINE_COLOR = "#10b981"
-
 const PERIODS: { value: BalancePeriod; label: string }[] = [
   { value: "daily", label: "Daily" },
   { value: "weekly", label: "Weekly" },

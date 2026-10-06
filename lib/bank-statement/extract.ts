@@ -29,9 +29,18 @@ export async function extractTransactions(
   pages: string[]
 ): Promise<Extraction> {
   const startedAt = performance.now()
+  // Later pages lack the column titles, and a page starting "10/05/24" is
+  // ambiguous on its own, so every chunk gets this context.
   const header = findColumnHeader(pages)
+  const dateOrder = detectDateOrder(pages)
+  const context = [
+    header && `Columns: ${header}`,
+    dateOrder && `Dates are written ${dateOrder}.`,
+  ]
+    .filter(Boolean)
+    .join("\n")
   const chunks = chunkPages(pages).map((chunk) =>
-    header ? `Columns: ${header}\n\n${chunk}` : chunk
+    context ? `${context}\n\n${chunk}` : chunk
   )
   const results = await mapWithConcurrency(
     chunks,
@@ -75,6 +84,17 @@ function missingBalanceRatio(transactions: Transaction[]) {
     transactions.filter((item) => item.balance === undefined).length /
     transactions.length
   )
+}
+
+/** Day-first or month-first, from the first numeric date that settles it. */
+function detectDateOrder(pages: string[]): string | undefined {
+  for (const [, first, second] of pages
+    .join("\n")
+    .matchAll(/\b(\d{1,2})[/.-](\d{1,2})[/.-]\d{2,4}\b/g)) {
+    if (Number(first) > 12) return "day-first (DD/MM/YY)"
+    if (Number(second) > 12) return "month-first (MM/DD/YY)"
+  }
+  return undefined
 }
 
 /** The column titles row, which statements usually print on the first page only. */

@@ -1,7 +1,10 @@
 import { statementOrder } from "./analyze"
 import type { Transaction } from "./schema"
 
+const MONTH_DAYS = 31
+
 export type ReconcileStats = {
+  datesFixed: number
   swapsFixed: number
   directionsFixed: number
   balancesFilled: number
@@ -11,6 +14,7 @@ export type ReconcileStats = {
 /**
  * The statement's running balance is the ground truth. Bank labels such as
  * "inward transfer" on a stamp-duty charge mislead the model, so:
+ * 0. dates misread as MM/DD (an outlier among its neighbours) are fixed,
  * 1. rows where the model swapped amount and balance are swapped back,
  * 2. each row's direction is taken from its balance change, and
  * 3. missing balances are filled only when the amounts add up exactly
@@ -20,9 +24,13 @@ export function reconcileBalances(transactions: Transaction[]): {
   transactions: Transaction[]
   stats: ReconcileStats
 } {
-  const order = statementOrder(transactions)
-  const rows = order.oldestFirst.map((row) => ({ ...row }))
+  // Dates first: one misread date at either end would flip the detected order.
+  const dated = transactions.map((row) => ({ ...row }))
+  const datesFixed = fixDates(dated)
+  const order = statementOrder(dated)
+  const rows = order.oldestFirst
   const stats = {
+    datesFixed,
     swapsFixed: fixSwaps(rows),
     directionsFixed: 0,
     balancesFilled: 0,
@@ -53,6 +61,62 @@ export function reconcileBalances(transactions: Transaction[]): {
   stats.directionsFixed += fixDirections(rows)
   stats.missingBalances = rows.filter((row) => row.balance === undefined).length
   return { transactions: order.restore(rows), stats }
+}
+
+/**
+ * A row whose date sits outside its neighbours but fits once day and month
+ * are swapped was a DD/MM date read as MM/DD (or the reverse). Decisions use
+ * the original dates so one bad row can't cascade into its neighbours.
+ */
+function fixDates(rows: Transaction[]): number {
+  const dates = rows.map((row) => row.date)
+  let fixed = 0
+  dates.forEach((date, index) => {
+    const swapped = swapDayMonth(date)
+    const range = expectedRange(dates, index)
+    if (swapped && range && !within(date, range) && within(swapped, range)) {
+      rows[index] = { ...rows[index], date: swapped }
+      fixed += 1
+    }
+  })
+  return fixed
+}
+
+/**
+ * Between its two neighbours; at either end, within a month of the next two
+ * rows, and only when those two agree with each other.
+ */
+function expectedRange(dates: string[], index: number) {
+  const previous = dates[index - 1]
+  const next = dates[index + 1]
+  if (previous && next) return [previous, next].sort()
+
+  const [a, b] = previous
+    ? [previous, dates[index - 2]]
+    : [next, dates[index + 2]]
+  // `!(gap <= …)` also rejects unparseable dates (NaN).
+  const gap = a && b ? Math.abs(toDay(a) - toDay(b)) : Number.NaN
+  if (!(gap <= MONTH_DAYS)) return undefined
+  const [low, high] = [a, b].sort()
+  return [shiftDays(low, -MONTH_DAYS), shiftDays(high, MONTH_DAYS)]
+}
+
+function within(date: string, [low, high]: string[]) {
+  return date >= low && date <= high
+}
+
+function toDay(date: string) {
+  return Date.parse(`${date}T00:00:00Z`) / 86_400_000
+}
+
+function shiftDays(date: string, days: number) {
+  return new Date((toDay(date) + days) * 86_400_000).toISOString().slice(0, 10)
+}
+
+function swapDayMonth(date: string): string | undefined {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date)
+  if (!match || Number(match[3]) > 12) return undefined
+  return `${match[1]}-${match[3]}-${match[2]}`
 }
 
 /** Swaps amount and balance back when only the swapped values chain. */

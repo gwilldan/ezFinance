@@ -140,8 +140,19 @@ function internalChecks(rows: Transaction[], opening?: number): Check[] {
     previous = row.balance
   })
 
+  const outOfOrder = rows.filter(
+    (row, index) => index > 0 && row.date < rows[index - 1].date
+  )
+
   return [
     { name: "rows found", pass: rows.length > 0, detail: `${rows.length}` },
+    {
+      name: "dates in order",
+      pass: !outOfOrder.length,
+      detail: outOfOrder.length
+        ? `${outOfOrder.length} out of order: ${list(outOfOrder.map((row) => `${row.date} ${row.merchant}`))}`
+        : `${rows[0]?.date} → ${rows.at(-1)?.date}`,
+    },
     {
       name: "balances present",
       pass: !missing.length,
