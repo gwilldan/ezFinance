@@ -2,7 +2,7 @@ import OpenAI from "openai"
 
 const DEFAULT_BASE_URL =
   "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
-const DEFAULT_MODEL = "qwen3.7-plus"
+const DEFAULT_MODEL = "qwen3.5-flash"
 
 type ChatRequest = Omit<
   OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,

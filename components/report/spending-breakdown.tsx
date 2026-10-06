@@ -3,6 +3,7 @@
 import type { CategoryBreakdown } from "@/lib/bank-statement/schema"
 import { CATEGORY_COLORS } from "@/lib/category-colors"
 import { formatMoney, formatPercent } from "@/lib/format"
+import { ChartBarBig, ChartPie } from "lucide-react"
 import { useState } from "react"
 import { Bar, Pie } from "react-chartjs-2"
 import { compactNumber, GRID_COLOR, TOOLTIP } from "./chart-setup"
@@ -10,9 +11,9 @@ import { Segmented } from "./segmented"
 
 type ChartType = "bar" | "pie"
 
-const CHART_TYPES: { value: ChartType; label: string }[] = [
-  { value: "bar", label: "Bar" },
-  { value: "pie", label: "Pie" },
+const CHART_TYPES = [
+  { value: "bar" as const, label: "Bar chart", icon: <ChartBarBig /> },
+  { value: "pie" as const, label: "Pie chart", icon: <ChartPie /> },
 ]
 
 export function SpendingBreakdown({
@@ -56,7 +57,7 @@ export function SpendingBreakdown({
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-700">
-            See where every naira went
+            See where your money went
           </h2>
           <p className="mt-1 text-sm text-slate-400">
             {formatMoney(totalOut, currency)} across {categories.length}{" "}

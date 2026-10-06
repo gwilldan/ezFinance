@@ -1,6 +1,7 @@
-export function formatMoney(value: number, currency = "NGN") {
+export function formatMoney(value: number, currency: string) {
   return new Intl.NumberFormat("en-NG", {
     style: "currency",
+    currencyDisplay: "narrowSymbol",
     currency,
     maximumFractionDigits: 0,
   }).format(value || 0)

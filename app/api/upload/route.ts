@@ -1,7 +1,7 @@
 import { getUserByAccessToken } from "@/lib/supabase/server"
 import { buildReport } from "@/lib/bank-statement/build-report"
 import { elapsed, extractTransactions } from "@/lib/bank-statement/extract"
-import { PDFParse } from "pdf-parse"
+import { readPdfPages } from "@/lib/bank-statement/pdf"
 import { NextRequest, NextResponse } from "next/server"
 
 export async function POST(request: NextRequest) {
@@ -25,40 +25,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "File must be a PDF" }, { status: 400 })
     }
 
-    const parser = new PDFParse({
-      data: new Uint8Array(await file.arrayBuffer()),
+    const startedAt = performance.now()
+    const { pages, total } = await readPdfPages(
+      new Uint8Array(await file.arrayBuffer())
+    )
+    console.info(`[upload] parsed ${total} pages: ${elapsed(startedAt)}`)
+    const { transactions, currency } = await extractTransactions(pages)
+
+    if (transactions.length === 0) {
+      return NextResponse.json(
+        {
+          error:
+            "We could not find transaction rows in this PDF. Try a text-based statement or an OCR-enabled workflow.",
+        },
+        { status: 422 }
+      )
+    }
+
+    const report = buildReport(transactions, {
+      fileName: file.name || "Bank statement.pdf",
+      pages: total,
+      currency,
     })
 
-    try {
-      const startedAt = performance.now()
-      const result = await parser.getText()
-      console.info(
-        `[upload] parsed ${result.total} pages: ${elapsed(startedAt)}`
-      )
-      const transactions = await extractTransactions(
-        result.pages.map((page) => page.text)
-      )
-
-      if (transactions.length === 0) {
-        return NextResponse.json(
-          {
-            error:
-              "We could not find transaction rows in this PDF. Try a text-based statement or an OCR-enabled workflow.",
-          },
-          { status: 422 }
-        )
-      }
-
-      const report = buildReport(transactions, {
-        fileName: file.name || "Bank statement.pdf",
-        pages: result.total,
-      })
-
-      console.info(`[upload] total for ${file.name}: ${elapsed(startedAt)}`)
-      return NextResponse.json({ report })
-    } finally {
-      await parser.destroy()
-    }
+    console.info(`[upload] total for ${file.name}: ${elapsed(startedAt)}`)
+    return NextResponse.json({ report })
   } catch (error) {
     console.error("PDF upload error", error)
     return NextResponse.json(

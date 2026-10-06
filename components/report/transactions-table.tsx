@@ -72,7 +72,7 @@ export function TransactionsTable({
             }}
             placeholder="Search merchant or description"
             aria-label="Search transactions"
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pr-3 pl-9 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-emerald-300 focus:bg-white"
+            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pr-3 pl-9 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-emerald-300 focus:bg-white"
           />
         </label>
         <Select
@@ -85,18 +85,28 @@ export function TransactionsTable({
         >
           <SelectTrigger
             aria-label="Filter by category"
-            className="h-auto w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 sm:w-52"
+            className="h-11 w-full rounded-xl border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 focus-visible:border-emerald-300 focus-visible:ring-0 data-[size=default]:h-11 sm:w-56"
           >
-            <SelectValue />
+            <SelectValue>
+              {(value: Category | null) => (
+                <>
+                  <CategoryDot category={value} />
+                  {value ?? "All categories"}
+                </>
+              )}
+            </SelectValue>
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent
+            alignItemWithTrigger={false}
+            className="rounded-xl p-1"
+          >
             {categoryItems.map((item) => (
               <SelectItem
                 key={item.label}
                 value={item.value}
-                className="text-sm"
+                className="min-h-9 gap-2.5 rounded-lg px-2.5 pr-8 text-sm"
               >
-                {item.value ? <CategoryDot category={item.value} /> : null}
+                <CategoryDot category={item.value} />
                 {item.label}
               </SelectItem>
             ))}
@@ -105,13 +115,14 @@ export function TransactionsTable({
       </div>
 
       <div className="mt-5 overflow-x-auto">
-        <table className="w-full min-w-[620px] text-left text-sm">
+        <table className="w-full min-w-[760px] text-left text-sm">
           <thead className="border-b border-slate-100 text-xs tracking-wider text-slate-400 uppercase">
             <tr>
               <th className="pb-3 font-medium">Date</th>
               <th className="pb-3 font-medium">Description</th>
               <th className="pb-3 font-medium">Category</th>
               <th className="pb-3 text-right font-medium">Amount</th>
+              <th className="pb-3 pl-6 text-right font-medium">Balance</th>
             </tr>
           </thead>
           <tbody>
@@ -221,15 +232,23 @@ function TransactionRow({
         {isCredit ? "+" : "−"}
         {formatMoney(transaction.amount, currency)}
       </td>
+      <td className="py-4 pl-6 text-right whitespace-nowrap text-slate-500">
+        {transaction.balance === undefined
+          ? "—"
+          : formatMoney(transaction.balance, currency)}
+      </td>
     </tr>
   )
 }
 
-function CategoryDot({ category }: { category: Category }) {
-  return (
+/** Colored dot for a category; an empty ring for "All categories". */
+function CategoryDot({ category }: { category: Category | null }) {
+  return category ? (
     <span
       className="h-2.5 w-2.5 shrink-0 rounded-full"
       style={{ backgroundColor: CATEGORY_COLORS[category] }}
     />
+  ) : (
+    <span className="h-2.5 w-2.5 shrink-0 rounded-full border border-slate-300" />
   )
 }

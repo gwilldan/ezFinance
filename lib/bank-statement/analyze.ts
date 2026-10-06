@@ -183,12 +183,9 @@ export function buildRunningBalance(
 ): RunningBalancePoint[] {
   // Same-day order is only known from the statement, so put it oldest-first
   // before the (stable) date sort.
-  const newestFirst =
-    transactions.length > 1 &&
-    transactions[0].date > transactions[transactions.length - 1].date
-  const chronological = (
-    newestFirst ? [...transactions].reverse() : [...transactions]
-  ).sort((a, b) => a.date.localeCompare(b.date))
+  const chronological = statementOrder(transactions).oldestFirst.sort((a, b) =>
+    a.date.localeCompare(b.date)
+  )
 
   let runningBalance = 0
   return chronological.map((transaction) => {
@@ -204,6 +201,22 @@ export function buildRunningBalance(
       description: transaction.description,
     }
   })
+}
+
+/**
+ * Statements list rows oldest- or newest-first, and same-day order is only
+ * known from the statement, so flip rather than sort. `restore` puts rows
+ * back in the statement's own order.
+ */
+export function statementOrder(transactions: Transaction[]) {
+  const newestFirst =
+    transactions.length > 1 &&
+    transactions[0].date > transactions[transactions.length - 1].date
+  return {
+    oldestFirst: newestFirst ? [...transactions].reverse() : [...transactions],
+    restore: (rows: Transaction[]) =>
+      newestFirst ? [...rows].reverse() : rows,
+  }
 }
 
 export type BalancePeriod = "daily" | "weekly" | "monthly"

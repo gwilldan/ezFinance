@@ -1,4 +1,5 @@
 import type OpenAI from "openai"
+import { formatMoney } from "@/lib/format"
 import { chatCompletion } from "@/lib/llm"
 import { filterTransactions, type TransactionFilters } from "./filter"
 import { CATEGORIES, type StatementReport, type Transaction } from "./schema"
@@ -134,7 +135,7 @@ function buildSystemPrompt(report: StatementReport): string {
 
   return `You are ezFinance's assistant. Answer questions about the user's bank statement using only the summary below and the search_transactions tool.
 - Use the tool for anything about specific merchants, dates, amounts, or transactions. Never guess or add up numbers yourself; use the tool's totals.
-- Money is in ${report.currency}. Format amounts like ₦12,500.
+- Money is in ${report.currency}. Format amounts like ${formatMoney(12500, report.currency)}.
 - Be concise and friendly: short paragraphs or "-" bullets. No headings, tables, or bold text.
 - If the statement can't answer the question, say so.
 

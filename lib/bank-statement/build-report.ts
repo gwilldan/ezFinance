@@ -12,9 +12,9 @@ import type { StatementReport, Transaction } from "./schema"
 
 export function buildReport(
   transactions: Transaction[],
-  metadata: { fileName: string; pages: number; currency?: string }
+  metadata: { fileName: string; pages: number; currency: string }
 ): StatementReport {
-  const currency = metadata.currency ?? "NGN"
+  const { currency } = metadata
   const snapshot = buildSnapshot(transactions)
   const categories = buildCategoryBreakdown(transactions)
   const subscriptions = detectSubscriptions(transactions)
