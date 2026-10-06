@@ -218,7 +218,7 @@ function uploadStatement(formData: FormData): Promise<UploadResponse> {
     const request = new XMLHttpRequest()
     request.open("POST", "/api/upload")
     request.responseType = "json"
-    request.timeout = 300_000
+    request.timeout = 500_000
 
     request.addEventListener("load", () => {
       const data = (request.response ?? {}) as UploadResponse

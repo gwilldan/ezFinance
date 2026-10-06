@@ -5,6 +5,11 @@ const DEFAULT_DASHSCOPE_BASE_URL =
   "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
 const DEFAULT_MODEL = "qwen3.7-plus"
 
+type DashScopeChatRequest =
+  OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming & {
+    enable_thinking: false
+  }
+
 export async function extractTransactions(
   text: string
 ): Promise<Transaction[]> {
@@ -16,16 +21,16 @@ export async function extractTransactions(
 }
 
 async function extractWithQwen(text: string): Promise<Transaction[]> {
-
   const client = new OpenAI({
     apiKey: process.env.DASHSCOPE_API_KEY,
     baseURL: process.env.DASHSCOPE_BASE_URL || DEFAULT_DASHSCOPE_BASE_URL,
   })
 
-  const response = await client.chat.completions.create({
+  const request: DashScopeChatRequest = {
     model: process.env.DASHSCOPE_MODEL || DEFAULT_MODEL,
     temperature: 0,
     response_format: { type: "json_object" },
+    enable_thinking: false,
     messages: [
       {
         role: "system",
@@ -36,7 +41,9 @@ async function extractWithQwen(text: string): Promise<Transaction[]> {
         content: `Extract every transaction from this statement text. Preserve the transaction order and use the exact description where possible.\n\n${text.slice(0, 100_000)}`,
       },
     ],
-  })
+  }
+
+  const response = await client.chat.completions.create(request)
 
   console.log("reponse", response)
 
