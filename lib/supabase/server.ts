@@ -97,6 +97,18 @@ export async function createSupabaseRouteClient() {
   })
 }
 
+/** Server-only client with admin rights (secret key), e.g. to delete users. */
+export function createSupabaseAdminClient() {
+  const { url } = getSupabaseServerConfig()
+  const secretKey = process.env.SUPABASE_SECRET_KEY
+  if (!secretKey) throw new Error("SUPABASE_SECRET_KEY is not configured.")
+
+  return createServerClient(url, secretKey, {
+    cookies: { getAll: () => [], setAll: () => {} },
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+}
+
 export async function signInWithPassword(email: string, password: string) {
   const supabase = await createSupabaseRouteClient()
   return supabase.auth.signInWithPassword({ email, password })

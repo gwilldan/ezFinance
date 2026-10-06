@@ -14,6 +14,11 @@ export function saveReport(report: StatementReport) {
   window.dispatchEvent(new Event(UPDATED_EVENT))
 }
 
+export function clearReport() {
+  window.sessionStorage.removeItem(STORAGE_KEY)
+  window.dispatchEvent(new Event(UPDATED_EVENT))
+}
+
 export function useStoredReport(): StatementReport | null {
   return useSyncExternalStore(subscribe, getSnapshot, () => null)
 }

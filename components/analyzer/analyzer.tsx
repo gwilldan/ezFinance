@@ -5,6 +5,7 @@ import { saveReport } from "@/lib/report-store"
 import { useRouter } from "next/navigation"
 import { ChangeEvent, useEffect, useRef, useState } from "react"
 import { PasswordModal, type PasswordReason } from "./password-modal"
+import { PiggyBank } from "./piggy-bank"
 import { UploadStateCard } from "./upload-state-card"
 
 type UploadResponse = {
@@ -138,7 +139,8 @@ export default function Analyzer() {
       ) : null}
 
       {uploadState === "idle" ? (
-        <div className="rounded-2xl bg-slate-100 p-12 text-center shadow-sm">
+        <div className="relative overflow-hidden rounded-2xl bg-slate-100 p-12 text-center shadow-sm">
+          <PiggyBank className="pointer-events-none absolute bottom-2 left-3 hidden w-24 sm:block" />
           <button
             type="button"
             onClick={() => inputRef.current?.click()}

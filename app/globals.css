@@ -108,9 +108,103 @@ button {
   animation: upload-copy 400ms ease-out both;
 }
 
+/* Piggy bank in the analyzer: a coin drops in, the pig squishes, then blinks. */
+@keyframes piggy-coin {
+  0% {
+    transform: translateY(-6px);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  48% {
+    transform: translateY(22px);
+    opacity: 1;
+  }
+  54%,
+  100% {
+    transform: translateY(22px);
+    opacity: 0;
+  }
+}
+
+@keyframes piggy-body {
+  0%,
+  46%,
+  70%,
+  100% {
+    transform: scale(1, 1);
+  }
+  54% {
+    transform: scale(1.04, 0.95);
+  }
+  62% {
+    transform: scale(0.98, 1.02) translateY(-2px);
+  }
+}
+
+@keyframes piggy-blink {
+  0%,
+  86%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  89% {
+    transform: scaleY(0.1);
+  }
+}
+
+@keyframes piggy-sparkle {
+  0%,
+  50%,
+  100% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  75% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+.piggy-coin,
+.piggy-body,
+.piggy-eye,
+.piggy-sparkle {
+  transform-box: fill-box;
+}
+
+.piggy-coin {
+  animation: piggy-coin 2.8s ease-in infinite;
+}
+
+.piggy-body {
+  transform-origin: 50% 100%;
+  animation: piggy-body 2.8s ease-in-out infinite;
+}
+
+.piggy-eye {
+  transform-origin: center;
+  animation: piggy-blink 5.6s ease-in-out infinite;
+}
+
+.piggy-sparkle {
+  transform-origin: center;
+  animation: piggy-sparkle 2.8s ease-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-upload-progress,
-  .animate-upload-copy {
+  .animate-upload-copy,
+  .piggy-coin,
+  .piggy-body,
+  .piggy-eye,
+  .piggy-sparkle {
     animation: none;
   }
 }
