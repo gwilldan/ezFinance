@@ -9,11 +9,17 @@ export type Plan = {
   description: string
   features: string[]
   cta: { label: string; href: string }
+  /** Short pill shown on the plan, e.g. "Most popular". */
+  badge: string
   highlighted?: boolean
 }
 
 const contact = (subject: string) =>
   `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}`
+
+/** Until there's a waitlist backend, joining is an email with the product in the subject. */
+export const waitlistHref = (product: string) =>
+  contact(`ezFinance ${product} waitlist`)
 
 export const PLANS: Plan[] = [
   {
@@ -26,9 +32,10 @@ export const PLANS: Plan[] = [
       "Up to 10 PDF pages",
       "AI categorization into 16 categories",
       "Balance chart and spending breakdown",
-      "Totals checked against your statement's balances",
+      "Totals checked against your statement’s balances",
     ],
     cta: { label: "Start free", href: "/" },
+    badge: "Start here",
   },
   {
     name: "One-time report",
@@ -44,6 +51,7 @@ export const PLANS: Plan[] = [
       label: "Unlock a report",
       href: contact("ezFinance one-time report"),
     },
+    badge: "Pay once",
   },
   {
     name: "Pro",
@@ -61,6 +69,7 @@ export const PLANS: Plan[] = [
       "Priority support",
     ],
     cta: { label: "Get Pro", href: contact("ezFinance Pro") },
+    badge: "Most popular",
     highlighted: true,
   },
   {
@@ -76,6 +85,7 @@ export const PLANS: Plan[] = [
       "Dedicated support",
     ],
     cta: { label: "Talk to us", href: contact("ezFinance Business") },
+    badge: "For teams",
   },
 ]
 

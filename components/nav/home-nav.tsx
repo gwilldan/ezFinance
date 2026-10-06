@@ -1,100 +1,119 @@
 "use client"
 
-import { useState } from "react"
-import { Button } from "../ui/button"
-import { ArrowRight, X, Menu } from "lucide-react"
 import { AuthModal, type AuthMode } from "@/components/auth-modal"
-import EzFinanceIcon from "../ui/icon"
+import { ArrowRight, Menu, X } from "lucide-react"
 import Link from "next/link"
+import { useState } from "react"
+import EzFinanceIcon from "../ui/icon"
+
+const LINKS = [
+  { label: "Story", href: "/#story" },
+  { label: "Products", href: "/#products" },
+  { label: "How it works", href: "/#how-it-works" },
+  { label: "Pricing", href: "/pricing" },
+]
 
 export function Nav() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [authMode, setAuthMode] = useState<AuthMode | null>(null)
 
+  function openAuth(mode: AuthMode) {
+    setAuthMode(mode)
+    setMenuOpen(false)
+  }
+
   return (
     <>
-      <nav className="fixed inset-x-0 top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 lg:px-10">
-          <EzFinanceIcon href="/" />
-          <div className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
-            <Link
-              href="/#product"
-              className="transition-colors hover:text-foreground"
-            >
-              Product
-            </Link>
-            <Link
-              href="/#how-it-works"
-              className="transition-colors hover:text-foreground"
-            >
-              How it works
-            </Link>
-            <Link
-              href="/#security"
-              className="transition-colors hover:text-foreground"
-            >
-              Security
-            </Link>
-            <Link
-              href="/pricing"
-              className="transition-colors hover:text-foreground"
-            >
-              Pricing
-            </Link>
-          </div>
-          <div className="hidden items-center gap-3 md:flex">
-            <Button
-              variant="ghost"
-              className="px-6 py-5 text-muted-foreground"
-              onClick={() => setAuthMode("login")}
-            >
-              Log in
-            </Button>
-            <Button
-              className="rounded-full bg-cyan-accent px-6 py-5 text-cyan-accent-foreground shadow-sm shadow-cyan-accent/25 hover:bg-cyan-accent/85"
-              onClick={() => setAuthMode("signup")}
-            >
-              Get started <ArrowRight className="size-4" />
-            </Button>
-          </div>
-          <button
-            className="rounded-md p-2 md:hidden"
-            onClick={() => setMenuOpen(!menuOpen)}
-            aria-label="Toggle navigation"
-            aria-expanded={menuOpen}
-          >
-            {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
-          </button>
-        </div>
+      <header className="fixed inset-x-0 top-0 z-40 px-4 pt-4">
+        <nav
+          aria-label="Main"
+          className="mx-auto max-w-6xl rounded-3xl border border-border/70 bg-card/80 px-4 py-3 shadow-sm backdrop-blur-xl supports-[backdrop-filter]:bg-card/65 sm:px-5"
+        >
+          <div className="flex items-center justify-between gap-4">
+            <EzFinanceIcon href="/" />
 
-        {menuOpen && (
-          <div className="mx-6 flex flex-col gap-4 border-t border-border py-5 text-sm md:hidden">
-            <Link href="/#product">Product</Link>
-            <Link href="/#how-it-works">How it works</Link>
-            <Link href="/#security">Security</Link>
-            <Link href="/pricing">Pricing</Link>
-            <Button
-              variant="ghost"
-              className="rounded-full text-muted-foreground"
-              onClick={() => {
-                setAuthMode("login")
-                setMenuOpen(false)
-              }}
+            <ul className="hidden items-center gap-1 text-sm text-muted-foreground md:flex">
+              {LINKS.map(({ label, href }) => (
+                <li key={href}>
+                  <Link
+                    href={href}
+                    className="rounded-full px-3.5 py-2 transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-cyan-accent focus-visible:outline-none"
+                  >
+                    {label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+
+            <div className="hidden items-center gap-2 md:flex">
+              <button
+                type="button"
+                onClick={() => openAuth("login")}
+                className="rounded-full px-4 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-cyan-accent focus-visible:outline-none"
+              >
+                Log in
+              </button>
+              <button
+                type="button"
+                onClick={() => openAuth("signup")}
+                className="inline-flex items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-sm font-medium text-ink-foreground transition-colors hover:bg-ink/85 focus-visible:ring-2 focus-visible:ring-cyan-accent focus-visible:ring-offset-2 focus-visible:outline-none"
+              >
+                Get started <ArrowRight className="size-4" />
+              </button>
+            </div>
+
+            <button
+              type="button"
+              className="rounded-full p-2 md:hidden"
+              onClick={() => setMenuOpen((open) => !open)}
+              aria-label="Toggle navigation"
+              aria-expanded={menuOpen}
+              aria-controls="mobile-menu"
             >
-              Log in
-            </Button>
-            <Button
-              className="rounded-full bg-cyan-accent text-cyan-accent-foreground shadow-sm shadow-cyan-accent/25 hover:bg-cyan-accent/85"
-              onClick={() => {
-                setAuthMode("signup")
-                setMenuOpen(false)
-              }}
-            >
-              Get started
-            </Button>
+              {menuOpen ? (
+                <X className="size-5" />
+              ) : (
+                <Menu className="size-5" />
+              )}
+            </button>
           </div>
-        )}
-      </nav>
+
+          {menuOpen ? (
+            <div
+              id="mobile-menu"
+              className="mt-3 flex flex-col gap-1 border-t border-border pt-3 text-sm md:hidden"
+            >
+              {LINKS.map(({ label, href }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setMenuOpen(false)}
+                  className="rounded-xl px-3 py-2.5 hover:bg-muted"
+                >
+                  {label}
+                </Link>
+              ))}
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => openAuth("login")}
+                  className="rounded-full border border-border px-4 py-2.5"
+                >
+                  Log in
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openAuth("signup")}
+                  className="rounded-full bg-ink px-4 py-2.5 font-medium text-ink-foreground"
+                >
+                  Get started
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </nav>
+      </header>
+
       {authMode && (
         <AuthModal
           mode={authMode}

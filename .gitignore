@@ -39,3 +39,7 @@ next-env.d.ts
 # private bank statements, their expected totals and eval output
 /script/statements/*
 !/script/statements/.gitkeep
+
+
+# inspirations
+/inspirations
