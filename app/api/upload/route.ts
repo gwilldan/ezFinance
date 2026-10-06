@@ -1,7 +1,7 @@
 import { getUserByAccessToken } from "@/lib/supabase/server"
 import { buildReport } from "@/lib/bank-statement/build-report"
 import { elapsed, extractTransactions } from "@/lib/bank-statement/extract"
-import { readPdfPages } from "@/lib/bank-statement/pdf"
+import { PdfPasswordError, readPdfPages } from "@/lib/bank-statement/pdf"
 import { NextRequest, NextResponse } from "next/server"
 
 export async function POST(request: NextRequest) {
@@ -17,6 +17,8 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData()
     const file = formData.get("file") as File | null
+    // Only ever passed to the PDF reader: never logged, stored or returned.
+    const password = formData.get("password")
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 })
@@ -27,7 +29,8 @@ export async function POST(request: NextRequest) {
 
     const startedAt = performance.now()
     const { pages, total } = await readPdfPages(
-      new Uint8Array(await file.arrayBuffer())
+      new Uint8Array(await file.arrayBuffer()),
+      typeof password === "string" && password ? password : undefined
     )
     console.info(`[upload] parsed ${total} pages: ${elapsed(startedAt)}`)
     const { transactions, currency } = await extractTransactions(pages)
@@ -51,6 +54,12 @@ export async function POST(request: NextRequest) {
     console.info(`[upload] total for ${file.name}: ${elapsed(startedAt)}`)
     return NextResponse.json({ report })
   } catch (error) {
+    if (error instanceof PdfPasswordError) {
+      return NextResponse.json(
+        { error: error.message, passwordRequired: error.reason },
+        { status: 422 }
+      )
+    }
     console.error("PDF upload error", error)
     return NextResponse.json(
       {

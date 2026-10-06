@@ -7,21 +7,23 @@
  *   npm run eval -- --dump      # also write <name>.out.json with the rows
  *
  * Expected totals sit next to each PDF as <name>.expected.json. Every field is
- * optional; copy them from the statement's summary section:
+ * optional; copy them from the statement's summary section. "password" unlocks
+ * a protected PDF (the file is git-ignored with the statements):
  *   { "currency": "NGN", "openingBalance": 0, "closingBalance": 0,
- *     "moneyIn": 0, "moneyOut": 0, "transactionCount": 0 }
+ *     "moneyIn": 0, "moneyOut": 0, "transactionCount": 0, "password": "" }
  */
 import { readdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { statementOrder } from "@/lib/bank-statement/analyze"
 import { elapsed, extractTransactions } from "@/lib/bank-statement/extract"
-import { readPdfPages } from "@/lib/bank-statement/pdf"
+import { PdfPasswordError, readPdfPages } from "@/lib/bank-statement/pdf"
 import type { Transaction } from "@/lib/bank-statement/schema"
 
 const DIR = path.resolve("script/statements")
 const MAX_LISTED = 5
 
 type Expected = {
+  password?: string
   currency?: string
   openingBalance?: number
   closingBalance?: number
@@ -81,7 +83,8 @@ async function evaluate(file: string): Promise<Result> {
 
   try {
     const { pages } = await readPdfPages(
-      new Uint8Array(await readFile(path.join(DIR, file)))
+      new Uint8Array(await readFile(path.join(DIR, file))),
+      expected.password
     )
     const { transactions, currency } = await extractTransactions(pages)
     const time = elapsed(startedAt)
@@ -98,7 +101,7 @@ async function evaluate(file: string): Promise<Result> {
       ...internalChecks(rows, expected.openingBalance),
       ...expectedChecks(rows, currency, expected),
     ]
-    const note = Object.keys(expected).length
+    const note = Object.keys(expected).some((key) => key !== "password")
       ? undefined
       : `no ${base}.expected.json, so totals were not checked against the statement`
     return { file, rows: rows.length, time, checks, note }
@@ -111,7 +114,12 @@ async function evaluate(file: string): Promise<Result> {
         {
           name: "extraction",
           pass: false,
-          detail: error instanceof Error ? error.message : String(error),
+          detail:
+            error instanceof PdfPasswordError
+              ? `${error.message} Add "password" to ${base}.expected.json.`
+              : error instanceof Error
+                ? error.message
+                : String(error),
         },
       ],
     }

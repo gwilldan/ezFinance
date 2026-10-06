@@ -4,11 +4,13 @@ import type { StatementReport } from "@/lib/bank-statement/schema"
 import { saveReport } from "@/lib/report-store"
 import { useRouter } from "next/navigation"
 import { ChangeEvent, useEffect, useRef, useState } from "react"
+import { PasswordModal, type PasswordReason } from "./password-modal"
 import { UploadStateCard } from "./upload-state-card"
 
 type UploadResponse = {
   report?: StatementReport
   error?: string
+  passwordRequired?: PasswordReason
 }
 
 const LOADING_STAGES = [
@@ -31,6 +33,12 @@ export default function Analyzer() {
   const [error, setError] = useState<string | null>(null)
   const [loadingStage, setLoadingStage] = useState(0)
   const [hasAnalyzed, setHasAnalyzed] = useState(false)
+  // A protected file waiting for its password. The password itself is never
+  // kept here; it only lives in the modal and the one request that uses it.
+  const [locked, setLocked] = useState<{
+    file: File
+    reason: PasswordReason
+  } | null>(null)
 
   useEffect(() => {
     if (uploadState !== "uploading") return
@@ -49,7 +57,7 @@ export default function Analyzer() {
     return () => window.clearInterval(timer)
   }, [uploadState])
 
-  async function handleFileUpload(file: File) {
+  async function handleFileUpload(file: File, password?: string) {
     if (file.type !== "application/pdf") {
       setFileName(file.name || "Customer Statement.pdf")
       setUploadState("error")
@@ -65,8 +73,15 @@ export default function Analyzer() {
     try {
       const formData = new FormData()
       formData.append("file", file)
+      if (password) formData.append("password", password)
 
       const data = await uploadStatement(formData)
+
+      if (data.passwordRequired) {
+        setLocked({ file, reason: data.passwordRequired })
+        setUploadState("idle")
+        return
+      }
 
       if (!data.report)
         throw new Error(data.error ?? "The analysis response was incomplete.")
@@ -87,6 +102,11 @@ export default function Analyzer() {
     }
   }
 
+  function chooseAnotherFile() {
+    setLocked(null)
+    inputRef.current?.click()
+  }
+
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     if (!file) return
@@ -102,6 +122,20 @@ export default function Analyzer() {
         className="hidden"
         onChange={handleFileChange}
       />
+
+      {locked ? (
+        <PasswordModal
+          fileName={locked.file.name}
+          reason={locked.reason}
+          onSubmit={(password) => {
+            const { file } = locked
+            setLocked(null)
+            void handleFileUpload(file, password)
+          }}
+          onChooseAnother={chooseAnotherFile}
+          onClose={() => setLocked(null)}
+        />
+      ) : null}
 
       {uploadState === "idle" ? (
         <div className="rounded-2xl bg-slate-100 p-12 text-center shadow-sm">
@@ -215,7 +249,10 @@ function uploadStatement(formData: FormData): Promise<UploadResponse> {
 
     request.addEventListener("load", () => {
       const data = (request.response ?? {}) as UploadResponse
-      if (request.status >= 200 && request.status < 300) {
+      if (
+        (request.status >= 200 && request.status < 300) ||
+        data.passwordRequired
+      ) {
         resolve(data)
       } else {
         reject(new Error(data.error ?? "Unable to upload your PDF."))
