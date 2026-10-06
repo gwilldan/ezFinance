@@ -1,6 +1,6 @@
 import { getUserByAccessToken } from "@/lib/supabase/server"
 import { buildReport } from "@/lib/bank-statement/build-report"
-import { extractTransactions } from "@/lib/bank-statement/extract"
+import { elapsed, extractTransactions } from "@/lib/bank-statement/extract"
 import { PDFParse } from "pdf-parse"
 import { NextRequest, NextResponse } from "next/server"
 
@@ -30,7 +30,11 @@ export async function POST(request: NextRequest) {
     })
 
     try {
+      const startedAt = performance.now()
       const result = await parser.getText()
+      console.info(
+        `[upload] parsed ${result.total} pages: ${elapsed(startedAt)}`
+      )
       const transactions = await extractTransactions(
         result.pages.map((page) => page.text)
       )
@@ -50,6 +54,7 @@ export async function POST(request: NextRequest) {
         pages: result.total,
       })
 
+      console.info(`[upload] total for ${file.name}: ${elapsed(startedAt)}`)
       return NextResponse.json({ report })
     } finally {
       await parser.destroy()

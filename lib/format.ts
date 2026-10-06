@@ -19,3 +19,13 @@ export function formatDate(value: string) {
         day: "numeric",
       }).format(date)
 }
+
+export function formatMonth(value: string) {
+  const date = new Date(`${value.slice(0, 7)}-01T00:00:00`)
+  return Number.isNaN(date.getTime())
+    ? value
+    : new Intl.DateTimeFormat("en", {
+        month: "short",
+        year: "numeric",
+      }).format(date)
+}

@@ -15,7 +15,9 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useState, type ReactNode } from "react"
+import { BalanceChart } from "./balance-chart"
 import { ChatSidebar } from "./chat-sidebar"
+import { SpendingBreakdown } from "./spending-breakdown"
 import { TransactionsTable } from "./transactions-table"
 
 export function ReportPage() {
@@ -113,6 +115,10 @@ function ReportContent({ report }: { report: StatementReport }) {
           />
         </section>
 
+        <section className="mt-8 rounded-3xl bg-white p-7 shadow-sm ring-1 ring-slate-100">
+          <BalanceChart points={report.runningBalance} currency={currency} />
+        </section>
+
         <section className="mt-8 grid gap-6 lg:grid-cols-[1.35fr_1fr]">
           <div className="rounded-3xl bg-white p-7 shadow-sm ring-1 ring-slate-100">
             <SectionHeading
@@ -161,13 +167,17 @@ function ReportContent({ report }: { report: StatementReport }) {
                       <p className="font-medium text-slate-700">
                         {subscription.merchant}
                       </p>
-                      <p className="text-xs text-slate-400">
-                        {subscription.occurrences} occurrence
-                        {subscription.occurrences === 1 ? "" : "s"}
+                      <p className="text-xs text-slate-400 capitalize">
+                        {subscription.cadence} ·{" "}
+                        {formatMoney(subscription.amount, currency)} ×{" "}
+                        {subscription.occurrences}
                       </p>
                     </div>
-                    <span className="font-semibold text-slate-700">
+                    <span className="text-right font-semibold text-slate-700">
                       {formatMoney(subscription.monthlyCost, currency)}
+                      <span className="block text-xs font-normal text-slate-400">
+                        / mo
+                      </span>
                     </span>
                   </div>
                 ))}
@@ -180,35 +190,11 @@ function ReportContent({ report }: { report: StatementReport }) {
 
         <section className="mt-8 grid gap-6 lg:grid-cols-[1fr_1fr]">
           <div className="rounded-3xl bg-white p-7 shadow-sm ring-1 ring-slate-100">
-            <SectionHeading
-              title="See where every naira went"
-              subtitle={`${formatMoney(snapshot.totalOut, currency)} across ${report.categories.length} categories`}
+            <SpendingBreakdown
+              categories={report.categories}
+              totalOut={snapshot.totalOut}
+              currency={currency}
             />
-            <div className="mt-6 space-y-5">
-              {report.categories.length ? (
-                report.categories.map((category) => (
-                  <div key={category.category}>
-                    <div className="mb-2 flex items-center justify-between text-sm">
-                      <span className="font-medium text-slate-700">
-                        {category.category}
-                      </span>
-                      <span className="text-slate-500">
-                        {formatMoney(category.total, currency)} ·{" "}
-                        {formatPercent(category.pct)}
-                      </span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                      <div
-                        className="h-full rounded-full bg-emerald-400"
-                        style={{ width: `${Math.max(3, category.pct * 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <EmptyState text="No debit categories were found." />
-              )}
-            </div>
           </div>
 
           <div className="rounded-3xl bg-white p-7 shadow-sm ring-1 ring-slate-100">

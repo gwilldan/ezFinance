@@ -20,11 +20,35 @@ Do not invent rows. Skip page headers, column titles, totals, account details, a
 export async function extractTransactions(
   pages: string[]
 ): Promise<Transaction[]> {
+  const startedAt = performance.now()
   const chunks = chunkPages(pages)
-  const results = await mapWithConcurrency(chunks, CONCURRENCY, (chunk) =>
-    extractChunk(chunk).catch(() => extractChunk(chunk))
+  const results = await mapWithConcurrency(
+    chunks,
+    CONCURRENCY,
+    (chunk, index) =>
+      timed(`[extract] chunk ${index + 1}/${chunks.length}`, () =>
+        extractChunk(chunk).catch(() => extractChunk(chunk))
+      )
   )
-  return results.flat()
+  const transactions = results.flat()
+
+  console.info(
+    `[extract] ${transactions.length} transactions from ${pages.length} pages in ${chunks.length} chunks: ${elapsed(startedAt)}`
+  )
+  return transactions
+}
+
+async function timed<T>(label: string, fn: () => Promise<T>): Promise<T> {
+  const startedAt = performance.now()
+  try {
+    return await fn()
+  } finally {
+    console.info(`${label}: ${elapsed(startedAt)}`)
+  }
+}
+
+export function elapsed(startedAt: number): string {
+  return `${((performance.now() - startedAt) / 1000).toFixed(2)}s`
 }
 
 async function extractChunk(text: string): Promise<Transaction[]> {
@@ -77,14 +101,14 @@ function compactText(text: string): string {
 async function mapWithConcurrency<T, R>(
   items: T[],
   limit: number,
-  fn: (item: T) => Promise<R>
+  fn: (item: T, index: number) => Promise<R>
 ): Promise<R[]> {
   const results = new Array<R>(items.length)
   let next = 0
   const worker = async () => {
     while (next < items.length) {
       const index = next++
-      results[index] = await fn(items[index])
+      results[index] = await fn(items[index], index)
     }
   }
   await Promise.all(

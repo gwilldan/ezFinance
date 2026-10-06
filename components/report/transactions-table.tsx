@@ -6,6 +6,14 @@ import {
   type Category,
   type Transaction,
 } from "@/lib/bank-statement/schema"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { CATEGORY_COLORS } from "@/lib/category-colors"
 import { formatDate, formatMoney } from "@/lib/format"
 import { ChevronLeft, ChevronRight, Search } from "lucide-react"
 import { useMemo, useState } from "react"
@@ -20,25 +28,27 @@ export function TransactionsTable({
   currency: string
 }) {
   const [search, setSearch] = useState("")
-  const [category, setCategory] = useState<Category | "">("")
+  const [category, setCategory] = useState<Category | null>(null)
   const [page, setPage] = useState(1)
 
   const newestFirst = useMemo(
     () => [...transactions].sort((a, b) => b.date.localeCompare(a.date)),
     [transactions]
   )
-  const categories = useMemo(
-    () =>
-      CATEGORIES.filter((item) =>
+  const categoryItems = useMemo(
+    () => [
+      { label: "All categories", value: null },
+      ...CATEGORIES.filter((item) =>
         transactions.some((transaction) => transaction.category === item)
-      ),
+      ).map((item) => ({ label: item, value: item })),
+    ],
     [transactions]
   )
   const filtered = useMemo(
     () =>
       filterTransactions(newestFirst, {
         search,
-        category: category || undefined,
+        category: category ?? undefined,
       }),
     [newestFirst, search, category]
   )
@@ -65,22 +75,33 @@ export function TransactionsTable({
             className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pr-3 pl-9 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-emerald-300 focus:bg-white"
           />
         </label>
-        <select
+        <Select
+          items={categoryItems}
           value={category}
-          onChange={(event) => {
-            setCategory(event.target.value as Category | "")
+          onValueChange={(value) => {
+            setCategory(value)
             setPage(1)
           }}
-          aria-label="Filter by category"
-          className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-emerald-300 focus:bg-white"
         >
-          <option value="">All categories</option>
-          {categories.map((item) => (
-            <option key={item} value={item}>
-              {item}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger
+            aria-label="Filter by category"
+            className="h-auto w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 sm:w-52"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {categoryItems.map((item) => (
+              <SelectItem
+                key={item.label}
+                value={item.value}
+                className="text-sm"
+              >
+                {item.value ? <CategoryDot category={item.value} /> : null}
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="mt-5 overflow-x-auto">
@@ -188,13 +209,27 @@ function TransactionRow({
           </p>
         ) : null}
       </td>
-      <td className="py-4 text-slate-500">{transaction.category}</td>
+      <td className="py-4 text-slate-500">
+        <span className="inline-flex items-center gap-2">
+          <CategoryDot category={transaction.category} />
+          {transaction.category}
+        </span>
+      </td>
       <td
-        className={`py-4 text-right font-semibold whitespace-nowrap ${isCredit ? "text-emerald-600" : "text-slate-700"}`}
+        className={`py-4 text-right font-semibold whitespace-nowrap ${isCredit ? "text-emerald-600" : "text-red-500"}`}
       >
         {isCredit ? "+" : "−"}
         {formatMoney(transaction.amount, currency)}
       </td>
     </tr>
+  )
+}
+
+function CategoryDot({ category }: { category: Category }) {
+  return (
+    <span
+      className="h-2.5 w-2.5 shrink-0 rounded-full"
+      style={{ backgroundColor: CATEGORY_COLORS[category] }}
+    />
   )
 }

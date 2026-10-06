@@ -45,11 +45,17 @@ export type CategoryBreakdown = {
   pct: number
 }
 
+export type Cadence = "weekly" | "biweekly" | "monthly" | "quarterly" | "yearly"
+
 export type Subscription = {
   merchant: string
-  monthlyCost: number
   category: Category
+  cadence: Cadence
+  /** Typical (median) charge */
+  amount: number
+  monthlyCost: number
   occurrences: number
+  lastDate: string
 }
 
 export type DuplicatePair = {

@@ -6,6 +6,7 @@ import {
   detectPossibleDuplicates,
   detectSubscriptions,
 } from "./analyze"
+import { formatMonth } from "@/lib/format"
 import { generateRecommendations } from "./recommend"
 import type { StatementReport, Transaction } from "./schema"
 
@@ -62,13 +63,4 @@ function formatPeriod(dates: string[]): string {
   const first = formatMonth(dates[0])
   const last = formatMonth(dates[dates.length - 1])
   return first === last ? first : `${first} – ${last}`
-}
-
-function formatMonth(date: string): string {
-  const parsed = new Date(`${date.slice(0, 10)}T00:00:00`)
-  if (Number.isNaN(parsed.getTime())) return date
-  return new Intl.DateTimeFormat("en", {
-    month: "short",
-    year: "numeric",
-  }).format(parsed)
 }
