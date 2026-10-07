@@ -1,10 +1,11 @@
-import { PLANS, waitlistHref } from "@/lib/plans"
+import { waitlistHref } from "@/lib/plans"
+import { formatPrice, PRICING } from "@/lib/pricing"
 import { ArrowRight, ArrowUpRight } from "lucide-react"
 import Link from "next/link"
 import { Reveal } from "./reveal"
 import { SectionTitle } from "./section"
 
-const pro = PLANS.find((plan) => plan.highlighted)
+const { free, pro } = PRICING
 
 /** Pricing teaser followed by the final call to action. */
 export function Closing({ onStart }: { onStart: () => void }) {
@@ -18,19 +19,15 @@ export function Closing({ onStart }: { onStart: () => void }) {
                 Start free. Upgrade when it earns its place.
               </h2>
               <p className="mt-2 text-muted-foreground">
-                Your first analysis is free
-                {pro ? (
-                  <>
-                    . {pro.name} is{" "}
-                    <span className="tabular-nums">
-                      {pro.price}
-                      {pro.period}
-                    </span>{" "}
-                    when you want more.
-                  </>
-                ) : (
-                  "."
-                )}
+                Your first{" "}
+                {free.allowance.reports === 1
+                  ? "report is"
+                  : `${free.allowance.reports} reports are`}{" "}
+                free. Pro is{" "}
+                <span className="tabular-nums">
+                  {formatPrice(pro.monthly)}/month
+                </span>{" "}
+                for {pro.allowance.reports} reports a month.
               </p>
             </div>
             <Link
@@ -44,6 +41,10 @@ export function Closing({ onStart }: { onStart: () => void }) {
 
         <Reveal>
           <div className="relative overflow-hidden rounded-[2rem] bg-cyan-accent px-8 py-20 text-center text-cyan-accent-foreground sm:px-16 lg:py-28">
+            <div
+              aria-hidden
+              className="bg-dot-grid pointer-events-none absolute inset-0 [--dot-color:rgb(255_255_255/0.22)]"
+            />
             <div
               aria-hidden
               className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_80%_at_50%_0%,rgba(255,255,255,0.14),transparent_70%),radial-gradient(50%_60%_at_100%_100%,color-mix(in_oklch,var(--ink)_45%,transparent),transparent_70%)]"

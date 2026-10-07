@@ -2,16 +2,16 @@ import { CONTACT_EMAIL, waitlistHref } from "@/lib/plans"
 import { ArrowUpRight, Wallet } from "lucide-react"
 import Link from "next/link"
 
-const COLUMNS = [
+/** A footer entry: a link, or (without href) an upcoming product shown faintly. */
+type FooterItem = { label: string; href?: string }
+
+const COLUMNS: { title: string; links: FooterItem[] }[] = [
   {
     title: "Products",
     links: [
       { label: "Statement Analyzer", href: "/#products" },
-      {
-        label: "Expense Tracker (soon)",
-        href: waitlistHref("Expense Tracker"),
-      },
-      { label: "Tax Filing (soon)", href: waitlistHref("Tax Filing") },
+      { label: "Expense Tracker" },
+      { label: "Tax Filing" },
       { label: "Pricing", href: "/pricing" },
     ],
   },
@@ -62,12 +62,21 @@ export default function Footer() {
               <ul className="mt-5 space-y-3 text-sm">
                 {column.links.map((link) => (
                   <li key={link.label}>
-                    <Link
-                      href={link.href}
-                      className="underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
-                    >
-                      {link.label}
-                    </Link>
+                    {link.href ? (
+                      <Link
+                        href={link.href}
+                        className="underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
+                      >
+                        {link.label}
+                      </Link>
+                    ) : (
+                      <span className="inline-flex items-center gap-2 text-ink-muted">
+                        {link.label}
+                        <span className="rounded-full border border-white/15 px-1.5 py-px text-[0.625rem] tracking-[0.05em] uppercase">
+                          Soon
+                        </span>
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>

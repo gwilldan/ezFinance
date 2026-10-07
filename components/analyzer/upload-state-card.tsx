@@ -1,8 +1,12 @@
+import type { ReactNode } from "react"
+
 type UploadStateCardProps = {
   fileName: string
   heading: string
   status: "uploading" | "success" | "error"
   error?: string
+  /** Shown under an error, e.g. a link to upgrade. */
+  action?: ReactNode
 }
 
 export function UploadStateCard({
@@ -10,6 +14,7 @@ export function UploadStateCard({
   heading,
   status,
   error,
+  action,
 }: UploadStateCardProps) {
   const isLoading = status === "uploading"
 
@@ -46,6 +51,9 @@ export function UploadStateCard({
           <div className="mt-8 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700">
             {error}
           </div>
+        ) : null}
+        {status === "error" && action ? (
+          <div className="mt-4">{action}</div>
         ) : null}
       </div>
     </div>

@@ -1,16 +1,20 @@
 "use client"
 
+import { UsageCard } from "@/components/billing/usage-card"
 import type { StatementReport } from "@/lib/bank-statement/schema"
+import { USAGE_LIMIT_CODE, type UsageSummary } from "@/lib/billing/types"
 import { saveReport } from "@/lib/report-store"
+import { ArrowRight, FileUp } from "lucide-react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ChangeEvent, useEffect, useRef, useState } from "react"
 import { PasswordModal, type PasswordReason } from "./password-modal"
-import { PiggyBank } from "./piggy-bank"
 import { UploadStateCard } from "./upload-state-card"
 
 type UploadResponse = {
   report?: StatementReport
   error?: string
+  code?: string
   passwordRequired?: PasswordReason
 }
 
@@ -24,7 +28,7 @@ const LOADING_STAGES = [
 
 const LOADING_STAGE_INTERVAL = 8_000
 
-export default function Analyzer() {
+export default function Analyzer({ usage }: { usage: UsageSummary }) {
   const router = useRouter()
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [uploadState, setUploadState] = useState<
@@ -34,6 +38,7 @@ export default function Analyzer() {
   const [error, setError] = useState<string | null>(null)
   const [loadingStage, setLoadingStage] = useState(0)
   const [hasAnalyzed, setHasAnalyzed] = useState(false)
+  const [limitReached, setLimitReached] = useState(false)
   // A protected file waiting for its password. The password itself is never
   // kept here; it only lives in the modal and the one request that uses it.
   const [locked, setLocked] = useState<{
@@ -69,6 +74,7 @@ export default function Analyzer() {
     setFileName(file.name || "Customer Statement.pdf")
     setUploadState("uploading")
     setError(null)
+    setLimitReached(false)
     setLoadingStage(0)
 
     try {
@@ -82,6 +88,11 @@ export default function Analyzer() {
         setLocked({ file, reason: data.passwordRequired })
         setUploadState("idle")
         return
+      }
+
+      if (data.code === USAGE_LIMIT_CODE) {
+        setLimitReached(true)
+        throw new Error(data.error)
       }
 
       if (!data.report)
@@ -139,14 +150,20 @@ export default function Analyzer() {
       ) : null}
 
       {uploadState === "idle" ? (
-        <div className="relative overflow-hidden rounded-2xl bg-slate-100 p-12 text-center shadow-sm">
-          <PiggyBank className="pointer-events-none absolute bottom-2 left-3 hidden w-24 sm:block" />
+        <div className="bg-dot-grid rounded-[2rem] bg-cyan-accent px-8 py-14 text-center text-cyan-accent-foreground shadow-sm sm:py-16">
+          <h1 className="font-serif text-4xl leading-[1.1] tracking-[-0.01em] text-balance sm:text-5xl">
+            Analyze a statement
+          </h1>
+          <p className="mx-auto mt-3 max-w-md text-pretty text-white">
+            Upload a PDF bank statement and get your report in about twenty
+            seconds.
+          </p>
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="mx-auto rounded-xl bg-slate-900 px-10 py-4 text-white shadow-inner hover:opacity-95"
-            aria-label="Analyze my statement"
+            className="mt-8 inline-flex items-center gap-2 rounded-full bg-white px-7 py-3.5 text-sm font-medium text-ink shadow-lg transition-colors hover:bg-white/90 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-cyan-accent focus-visible:outline-none"
           >
+            <FileUp className="size-4" aria-hidden />
             Analyze my statement
           </button>
         </div>
@@ -169,6 +186,16 @@ export default function Analyzer() {
                   : "Something went wrong"
             }
             error={error ?? undefined}
+            action={
+              limitReached ? (
+                <Link
+                  href="/pricing"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-ink-foreground hover:bg-ink/85"
+                >
+                  See plans <ArrowRight className="size-4" aria-hidden />
+                </Link>
+              ) : undefined
+            }
           />
         </div>
       )}
@@ -224,18 +251,7 @@ export default function Analyzer() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-slate-100 bg-slate-50 p-4">
-            <div className="flex items-center justify-between text-sm">
-              <div className="font-medium">Free analysis</div>
-              <div className="text-sm text-slate-500">0 / 1</div>
-            </div>
-            <div className="mt-3 h-2 w-full rounded-full bg-slate-100">
-              <div className="h-2 w-0 rounded-full bg-slate-300" />
-            </div>
-            <div className="mt-3 text-right text-sm text-slate-500">
-              Unlock more reports
-            </div>
-          </div>
+          <UsageCard usage={usage} />
         </div>
       </div>
     </div>
@@ -253,7 +269,8 @@ function uploadStatement(formData: FormData): Promise<UploadResponse> {
       const data = (request.response ?? {}) as UploadResponse
       if (
         (request.status >= 200 && request.status < 300) ||
-        data.passwordRequired
+        data.passwordRequired ||
+        data.code === USAGE_LIMIT_CODE
       ) {
         resolve(data)
       } else {

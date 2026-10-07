@@ -1,5 +1,7 @@
 "use client"
 
+import { UsageCard } from "@/components/billing/usage-card"
+import type { UsageSummary } from "@/lib/billing/types"
 import { clearReport } from "@/lib/report-store"
 import { Check, Database, Trash2 } from "lucide-react"
 import type { ReactNode } from "react"
@@ -10,9 +12,11 @@ type Dialog = "data" | "account" | null
 
 export function SettingsPage({
   email,
+  usage,
   emailTips: initialEmailTips,
 }: {
   email: string
+  usage: UsageSummary
   emailTips: boolean
 }) {
   const [emailTips, setEmailTips] = useState(initialEmailTips)
@@ -59,6 +63,13 @@ export function SettingsPage({
         <p className="mt-3 text-muted-foreground">Signed in as {email}</p>
 
         <section className="mt-14">
+          <h2 className="text-xl font-semibold tracking-[-0.03em]">
+            Plan and usage
+          </h2>
+          <UsageCard usage={usage} className="mt-5" />
+        </section>
+
+        <section className="mt-10">
           <h2 className="text-xl font-semibold tracking-[-0.03em]">Email</h2>
           <label className="mt-5 flex cursor-pointer items-start gap-3 text-sm leading-6 text-muted-foreground">
             <input

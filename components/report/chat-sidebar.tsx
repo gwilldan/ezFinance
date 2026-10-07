@@ -2,7 +2,9 @@
 
 import type { ChatMessage } from "@/lib/bank-statement/chat"
 import type { StatementReport } from "@/lib/bank-statement/schema"
+import { USAGE_LIMIT_CODE } from "@/lib/billing/types"
 import { ArrowUp, MessageCircle, Sparkles, X } from "lucide-react"
+import Link from "next/link"
 import { FormEvent, useEffect, useRef, useState } from "react"
 
 const SUGGESTIONS = [
@@ -25,6 +27,7 @@ export function ChatSidebar({
   const [input, setInput] = useState("")
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [limitReached, setLimitReached] = useState(false)
   const scrollRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -33,7 +36,7 @@ export function ChatSidebar({
 
   async function ask(question: string) {
     const content = question.trim()
-    if (!content || pending) return
+    if (!content || pending || limitReached) return
 
     const next: ChatMessage[] = [...messages, { role: "user", content }]
     setMessages(next)
@@ -50,7 +53,9 @@ export function ChatSidebar({
       const data = (await response.json()) as {
         answer?: string
         error?: string
+        code?: string
       }
+      if (data.code === USAGE_LIMIT_CODE) setLimitReached(true)
       if (!response.ok || !data.answer) {
         throw new Error(data.error ?? "Unable to answer right now.")
       }
@@ -149,6 +154,14 @@ export function ChatSidebar({
         {error ? (
           <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
+            {limitReached ? (
+              <Link
+                href="/pricing"
+                className="mt-2 block font-medium underline underline-offset-4"
+              >
+                See plans
+              </Link>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -166,7 +179,7 @@ export function ChatSidebar({
         />
         <button
           type="submit"
-          disabled={pending || !input.trim()}
+          disabled={pending || limitReached || !input.trim()}
           aria-label="Send"
           className="grid h-11 w-11 place-items-center rounded-xl bg-slate-900 text-white disabled:opacity-40"
         >

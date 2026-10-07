@@ -1,13 +1,14 @@
-import { getUserByAccessToken } from "@/lib/supabase/server"
+import { usageLimitResponse } from "@/lib/billing/paywall"
+import { spendUsage } from "@/lib/billing/usage"
 import { buildReport } from "@/lib/bank-statement/build-report"
 import { elapsed, extractTransactions } from "@/lib/bank-statement/extract"
 import { PdfPasswordError, readPdfPages } from "@/lib/bank-statement/pdf"
+import { getUserByAccessToken } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
 
 export async function POST(request: NextRequest) {
   try {
     const user = await getUserByAccessToken()
-
     if (!user) {
       return NextResponse.json(
         { error: "Authentication required." },
@@ -27,45 +28,60 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "File must be a PDF" }, { status: 400 })
     }
 
-    const startedAt = performance.now()
-    const { pages, total } = await readPdfPages(
-      new Uint8Array(await file.arrayBuffer()),
+    const spend = await spendUsage(user.id, "reports")
+    if (!spend) return usageLimitResponse("reports")
+
+    // Only a finished report counts; anything else gives the report back.
+    const response = await analyzeStatement(
+      file,
       typeof password === "string" && password ? password : undefined
-    )
-    console.info(`[upload] parsed ${total} pages: ${elapsed(startedAt)}`)
-    const { transactions, currency } = await extractTransactions(pages)
-
-    if (transactions.length === 0) {
-      return NextResponse.json(
-        {
-          error:
-            "We could not find transaction rows in this PDF. Try a text-based statement or an OCR-enabled workflow.",
-        },
-        { status: 422 }
-      )
-    }
-
-    const report = buildReport(transactions, {
-      fileName: file.name || "Bank statement.pdf",
-      pages: total,
-      currency,
-    })
-
-    console.info(`[upload] total for ${file.name}: ${elapsed(startedAt)}`)
-    return NextResponse.json({ report })
+    ).catch(errorResponse)
+    if (!response.ok) await spend.refund()
+    return response
   } catch (error) {
-    if (error instanceof PdfPasswordError) {
-      return NextResponse.json(
-        { error: error.message, passwordRequired: error.reason },
-        { status: 422 }
-      )
-    }
-    console.error("PDF upload error", error)
+    return errorResponse(error)
+  }
+}
+
+async function analyzeStatement(file: File, password?: string) {
+  const startedAt = performance.now()
+  const { pages, total } = await readPdfPages(
+    new Uint8Array(await file.arrayBuffer()),
+    password
+  )
+  console.info(`[upload] parsed ${total} pages: ${elapsed(startedAt)}`)
+  const { transactions, currency } = await extractTransactions(pages)
+
+  if (transactions.length === 0) {
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Failed to process PDF",
+        error:
+          "We could not find transaction rows in this PDF. Try a text-based statement or an OCR-enabled workflow.",
       },
-      { status: 500 }
+      { status: 422 }
     )
   }
+
+  const report = buildReport(transactions, {
+    fileName: file.name || "Bank statement.pdf",
+    pages: total,
+    currency,
+  })
+
+  console.info(`[upload] total for ${file.name}: ${elapsed(startedAt)}`)
+  return NextResponse.json({ report })
+}
+
+function errorResponse(error: unknown) {
+  if (error instanceof PdfPasswordError) {
+    return NextResponse.json(
+      { error: error.message, passwordRequired: error.reason },
+      { status: 422 }
+    )
+  }
+  console.error("PDF upload error", error)
+  return NextResponse.json(
+    { error: error instanceof Error ? error.message : "Failed to process PDF" },
+    { status: 500 }
+  )
 }

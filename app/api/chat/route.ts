@@ -1,4 +1,6 @@
 import { answerQuestion, type ChatMessage } from "@/lib/bank-statement/chat"
+import { usageLimitResponse } from "@/lib/billing/paywall"
+import { spendUsage } from "@/lib/billing/usage"
 import type { StatementReport } from "@/lib/bank-statement/schema"
 import { getUserByAccessToken } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
@@ -30,8 +32,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const answer = await answerQuestion(report, history)
-    return NextResponse.json({ answer })
+    const spend = await spendUsage(user.id, "agentCalls")
+    if (!spend) return usageLimitResponse("agentCalls")
+
+    try {
+      const answer = await answerQuestion(report, history)
+      return NextResponse.json({ answer })
+    } catch (error) {
+      // A failed answer doesn't use up a question.
+      await spend.refund()
+      throw error
+    }
   } catch (error) {
     console.error("Chat error", error)
     return NextResponse.json(

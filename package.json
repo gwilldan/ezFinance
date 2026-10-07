@@ -10,7 +10,8 @@
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
-    "eval": "tsx --env-file=.env script/eval.ts"
+    "eval": "tsx --env-file=.env script/eval.ts",
+    "grant": "tsx --env-file=.env script/grant.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
