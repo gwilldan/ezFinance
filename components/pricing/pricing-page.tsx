@@ -92,7 +92,7 @@ function PlanRow({ plan }: { plan: Plan }) {
         {plan.badge}
       </span>
 
-      <div className="flex flex-col">
+      <div className="flex flex-col sm:col-start-1 sm:row-start-1">
         <h2 className="font-medium">{plan.name}</h2>
         <p className="mt-3 flex items-baseline gap-1.5">
           <span className="font-serif text-5xl leading-none tracking-[-0.02em] tabular-nums">
@@ -110,24 +110,9 @@ function PlanRow({ plan }: { plan: Plan }) {
         <p className="mt-3 text-sm leading-6 text-pretty text-muted-foreground">
           {plan.description}
         </p>
-        <Link
-          href={plan.cta.href}
-          className={cn(
-            "mt-6 inline-flex w-fit items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-cyan-accent focus-visible:ring-offset-2 focus-visible:outline-none",
-            highlighted
-              ? "bg-cyan-accent text-cyan-accent-foreground hover:bg-cyan-accent/85"
-              : "border border-border bg-card hover:bg-muted"
-          )}
-        >
-          {plan.cta.label}
-          <ArrowRight
-            className="size-4 transition-transform group-hover/plan:translate-x-0.5 motion-reduce:transition-none"
-            aria-hidden
-          />
-        </Link>
       </div>
 
-      <div className="flex flex-col gap-5 sm:border-l sm:border-border/70 sm:pl-8">
+      <div className="flex flex-col gap-5 sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:border-l sm:border-border/70 sm:pl-8">
         <ul className="space-y-3 text-sm">
           {[...plan.allowance, ...plan.features].map((feature) => (
             <li key={feature} className="flex gap-3">
@@ -146,6 +131,22 @@ function PlanRow({ plan }: { plan: Plan }) {
           </p>
         ) : null}
       </div>
+
+      <Link
+        href={plan.cta.href}
+        className={cn(
+          "inline-flex w-fit items-center gap-2 self-end rounded-full px-5 py-2.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-cyan-accent focus-visible:ring-offset-2 focus-visible:outline-none sm:col-start-1 sm:row-start-2",
+          highlighted
+            ? "bg-cyan-accent text-cyan-accent-foreground hover:bg-cyan-accent/85"
+            : "border border-border bg-card hover:bg-muted"
+        )}
+      >
+        {plan.cta.label}
+        <ArrowRight
+          className="size-4 transition-transform group-hover/plan:translate-x-0.5 motion-reduce:transition-none"
+          aria-hidden
+        />
+      </Link>
     </article>
   )
 }
