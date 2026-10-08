@@ -3,6 +3,7 @@
 import type { ChatMessage } from "@/lib/bank-statement/chat"
 import type { StatementReport } from "@/lib/bank-statement/schema"
 import { USAGE_LIMIT_CODE } from "@/lib/billing/types"
+import type { ReportStorage } from "@/lib/reports/types"
 import { ArrowUp, MessageCircle, Sparkles, X } from "lucide-react"
 import Link from "next/link"
 import { FormEvent, useEffect, useRef, useState } from "react"
@@ -14,16 +15,28 @@ const SUGGESTIONS = [
   "Which subscriptions should I review?",
 ]
 
+/**
+ * Chat about one statement. Its history belongs to that statement: the server
+ * saves cloud chats, and `onMessagesChange` saves device ones.
+ */
 export function ChatSidebar({
+  reportId,
   report,
+  storage,
+  initialMessages,
+  onMessagesChange,
   open,
   onOpenChange,
 }: {
+  reportId: string
   report: StatementReport
+  storage: ReportStorage
+  initialMessages: ChatMessage[]
+  onMessagesChange?: (messages: ChatMessage[]) => void
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
   const [input, setInput] = useState("")
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -48,7 +61,13 @@ export function ChatSidebar({
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ report, messages: next }),
+        body: JSON.stringify({
+          reportId,
+          storage,
+          messages: next,
+          // Cloud reports are loaded on the server.
+          report: storage === "local" ? report : undefined,
+        }),
       })
       const data = (await response.json()) as {
         answer?: string
@@ -59,7 +78,16 @@ export function ChatSidebar({
       if (!response.ok || !data.answer) {
         throw new Error(data.error ?? "Unable to answer right now.")
       }
-      setMessages([...next, { role: "assistant", content: data.answer }])
+      const answered: ChatMessage[] = [
+        ...next,
+        { role: "assistant", content: data.answer },
+      ]
+      setMessages(answered)
+      try {
+        onMessagesChange?.(answered)
+      } catch (saveError) {
+        console.error("Chat save failed", saveError)
+      }
     } catch (chatError) {
       setError(
         chatError instanceof Error ? chatError.message : "Something went wrong."

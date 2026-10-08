@@ -3,15 +3,20 @@
 import { UsageCard } from "@/components/billing/usage-card"
 import type { StatementReport } from "@/lib/bank-statement/schema"
 import { USAGE_LIMIT_CODE, type UsageSummary } from "@/lib/billing/types"
-import { saveReport } from "@/lib/report-store"
-import { ArrowRight, FileUp } from "lucide-react"
+import { formatDate } from "@/lib/format"
+import { saveLocalReport, useLocalReportSummaries } from "@/lib/report-store"
+import type { ReportStorage, ReportSummary } from "@/lib/reports/types"
+import { ArrowRight, ChevronRight, Cloud, FileUp, Laptop } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ChangeEvent, useEffect, useRef, useState } from "react"
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react"
 import { PasswordModal, type PasswordReason } from "./password-modal"
 import { UploadStateCard } from "./upload-state-card"
 
 type UploadResponse = {
+  id?: string
+  storage?: ReportStorage
+  /** Only for device storage; cloud reports stay on the server. */
   report?: StatementReport
   error?: string
   code?: string
@@ -28,7 +33,15 @@ const LOADING_STAGES = [
 
 const LOADING_STAGE_INTERVAL = 8_000
 
-export default function Analyzer({ usage }: { usage: UsageSummary }) {
+export default function Analyzer({
+  userId,
+  usage,
+  cloudHistory,
+}: {
+  userId: string
+  usage: UsageSummary
+  cloudHistory: ReportSummary[]
+}) {
   const router = useRouter()
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [uploadState, setUploadState] = useState<
@@ -37,7 +50,6 @@ export default function Analyzer({ usage }: { usage: UsageSummary }) {
   const [fileName, setFileName] = useState("Customer Statement.pdf")
   const [error, setError] = useState<string | null>(null)
   const [loadingStage, setLoadingStage] = useState(0)
-  const [hasAnalyzed, setHasAnalyzed] = useState(false)
   const [limitReached, setLimitReached] = useState(false)
   // A protected file waiting for its password. The password itself is never
   // kept here; it only lives in the modal and the one request that uses it.
@@ -95,13 +107,18 @@ export default function Analyzer({ usage }: { usage: UsageSummary }) {
         throw new Error(data.error)
       }
 
-      if (!data.report)
+      if (!data.id || (data.storage !== "cloud" && !data.report))
         throw new Error(data.error ?? "The analysis response was incomplete.")
 
-      saveReport(data.report)
-      setHasAnalyzed(true)
+      if (data.storage !== "cloud" && data.report) {
+        saveLocalReport(userId, {
+          id: data.id,
+          report: data.report,
+          messages: [],
+        })
+      }
       setUploadState("success")
-      router.push("/result")
+      router.push(`/result/${data.id}`)
     } catch (uploadError) {
       setUploadState("error")
       setError(
@@ -113,6 +130,15 @@ export default function Analyzer({ usage }: { usage: UsageSummary }) {
       }
     }
   }
+
+  const localHistory = useLocalReportSummaries(userId)
+  const history = useMemo(
+    () =>
+      [...localHistory, ...cloudHistory].sort((a, b) =>
+        b.generatedAt.localeCompare(a.generatedAt)
+      ),
+    [localHistory, cloudHistory]
+  )
 
   function chooseAnotherFile() {
     setLocked(null)
@@ -149,26 +175,22 @@ export default function Analyzer({ usage }: { usage: UsageSummary }) {
         />
       ) : null}
 
-      {uploadState === "idle" ? (
-        <div className="bg-dot-grid rounded-[2rem] bg-cyan-accent px-8 py-14 text-center text-cyan-accent-foreground shadow-sm sm:py-16">
-          <h1 className="font-serif text-4xl leading-[1.1] tracking-[-0.01em] text-balance sm:text-5xl">
-            Analyze a statement
-          </h1>
-          <p className="mx-auto mt-3 max-w-md text-pretty text-white">
-            Upload a PDF bank statement and get your report in about twenty
-            seconds.
-          </p>
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            className="mt-8 inline-flex items-center gap-2 rounded-full bg-white px-7 py-3.5 text-sm font-medium text-ink shadow-lg transition-colors hover:bg-white/90 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-cyan-accent focus-visible:outline-none"
-          >
-            <FileUp className="size-4" aria-hidden />
-            Analyze my statement
-          </button>
-        </div>
-      ) : (
-        <div className="mb-8">
+      {/* One card for every state, so the background never changes. */}
+      <div className="bg-dot-grid rounded-[2rem] bg-cyan-accent px-8 py-14 text-center text-cyan-accent-foreground shadow-sm sm:py-16">
+        {uploadState === "idle" ? (
+          <>
+            <h1 className="font-serif text-4xl leading-[1.1] tracking-[-0.01em] text-balance sm:text-5xl">
+              Analyze a statement
+            </h1>
+            <p className="mx-auto mt-3 max-w-md text-pretty text-white">
+              Upload a PDF bank statement and get your report in about twenty
+              seconds.
+            </p>
+            <UploadButton onClick={() => inputRef.current?.click()}>
+              Analyze my statement
+            </UploadButton>
+          </>
+        ) : (
           <UploadStateCard
             fileName={fileName}
             status={
@@ -194,11 +216,15 @@ export default function Analyzer({ usage }: { usage: UsageSummary }) {
                 >
                   See plans <ArrowRight className="size-4" aria-hidden />
                 </Link>
-              ) : undefined
+              ) : (
+                <UploadButton onClick={() => inputRef.current?.click()}>
+                  Try another statement
+                </UploadButton>
+              )
             }
           />
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="mt-8 rounded-2xl bg-white p-6 shadow ring-1 ring-slate-100">
         <h3 className="text-sm font-medium text-slate-700">Statement tool</h3>
@@ -230,9 +256,9 @@ export default function Analyzer({ usage }: { usage: UsageSummary }) {
           </div>
           <button
             type="button"
-            onClick={() => inputRef.current?.click()}
-            className="text-slate-400 hover:text-slate-600"
-            aria-label="Upload PDF statement"
+            disabled
+            className="cursor-not-allowed text-slate-300"
+            aria-label="Statement tool options (coming soon)"
           >
             ▾
           </button>
@@ -242,19 +268,84 @@ export default function Analyzer({ usage }: { usage: UsageSummary }) {
       <div className="mt-8 rounded-2xl bg-white p-6 shadow ring-1 ring-slate-100">
         <h3 className="text-sm font-medium text-slate-700">History</h3>
         <div className="mt-4">
-          <div className="mx-auto my-4 max-w-2xl rounded-lg border-2 border-dashed border-slate-200 p-8 text-center text-sm text-slate-400">
-            {hasAnalyzed
-              ? "PDF analyzed successfully"
-              : "Upload your first statement above"}
-            <div className="mt-1 text-xs text-muted-foreground">
-              Your analyses and tool runs will appear here.
-            </div>
-          </div>
+          <History items={history} />
 
           <UsageCard usage={usage} />
         </div>
       </div>
     </div>
+  )
+}
+
+function UploadButton({
+  onClick,
+  children,
+}: {
+  onClick: () => void
+  children: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="mt-8 inline-flex items-center gap-2 rounded-full bg-white px-7 py-3.5 text-sm font-medium text-ink shadow-lg transition-colors hover:bg-white/90 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-cyan-accent focus-visible:outline-none"
+    >
+      <FileUp className="size-4" aria-hidden />
+      {children}
+    </button>
+  )
+}
+
+/** Saved statements, newest first. Each opens its report. */
+function History({ items }: { items: ReportSummary[] }) {
+  if (!items.length) {
+    return (
+      <div className="mx-auto my-4 max-w-2xl rounded-lg border-2 border-dashed border-slate-200 p-8 text-center text-sm text-slate-400">
+        Upload your first statement above
+        <div className="mt-1 text-xs text-muted-foreground">
+          Your analyses and tool runs will appear here.
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <ul className="my-4 divide-y divide-slate-100 rounded-xl border border-slate-100">
+      {items.map((item) => (
+        <li key={item.id}>
+          <Link
+            href={`/result/${item.id}`}
+            className="flex items-center gap-4 px-4 py-3 hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium text-slate-700">
+                {item.fileName}
+              </p>
+              <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                {item.statementPeriod} · {item.transactionCount} transaction
+                {item.transactionCount === 1 ? "" : "s"} · Analyzed{" "}
+                {formatDate(item.generatedAt)}
+              </p>
+            </div>
+            <span className="inline-flex shrink-0 items-center gap-1 text-xs text-slate-400">
+              {item.storage === "cloud" ? (
+                <>
+                  <Cloud className="size-3.5" aria-hidden /> Cloud
+                </>
+              ) : (
+                <>
+                  <Laptop className="size-3.5" aria-hidden /> This device
+                </>
+              )}
+            </span>
+            <ChevronRight
+              className="size-4 shrink-0 text-slate-300"
+              aria-hidden
+            />
+          </Link>
+        </li>
+      ))}
+    </ul>
   )
 }
 

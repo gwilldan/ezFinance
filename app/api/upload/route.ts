@@ -3,7 +3,10 @@ import { spendUsage } from "@/lib/billing/usage"
 import { buildReport } from "@/lib/bank-statement/build-report"
 import { elapsed, extractTransactions } from "@/lib/bank-statement/extract"
 import { PdfPasswordError, readPdfPages } from "@/lib/bank-statement/pdf"
+import { saveCloudReport } from "@/lib/reports/server"
+import { reportStorageOf, type ReportStorage } from "@/lib/reports/types"
 import { getUserByAccessToken } from "@/lib/supabase/server"
+import { randomUUID } from "crypto"
 import { NextRequest, NextResponse } from "next/server"
 
 export async function POST(request: NextRequest) {
@@ -34,7 +37,8 @@ export async function POST(request: NextRequest) {
     // Only a finished report counts; anything else gives the report back.
     const response = await analyzeStatement(
       file,
-      typeof password === "string" && password ? password : undefined
+      typeof password === "string" && password ? password : undefined,
+      { userId: user.id, storage: reportStorageOf(user.user_metadata) }
     ).catch(errorResponse)
     if (!response.ok) await spend.refund()
     return response
@@ -43,7 +47,11 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function analyzeStatement(file: File, password?: string) {
+async function analyzeStatement(
+  file: File,
+  password: string | undefined,
+  owner: { userId: string; storage: ReportStorage }
+) {
   const startedAt = performance.now()
   const { pages, total } = await readPdfPages(
     new Uint8Array(await file.arrayBuffer()),
@@ -68,8 +76,16 @@ async function analyzeStatement(file: File, password?: string) {
     currency,
   })
 
+  const id = randomUUID()
   console.info(`[upload] total for ${file.name}: ${elapsed(startedAt)}`)
-  return NextResponse.json({ report })
+
+  // Cloud reports are saved (encrypted) here; device reports go back to the
+  // browser, which saves them locally.
+  if (owner.storage === "cloud") {
+    await saveCloudReport(owner.userId, id, report)
+    return NextResponse.json({ id, storage: owner.storage })
+  }
+  return NextResponse.json({ id, storage: owner.storage, report })
 }
 
 function errorResponse(error: unknown) {

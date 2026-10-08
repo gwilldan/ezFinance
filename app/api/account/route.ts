@@ -18,21 +18,30 @@ export async function PATCH(request: NextRequest) {
   }
 
   const body = await request.json().catch(() => null)
-  if (typeof body?.emailTips !== "boolean") {
+  const data: Record<string, unknown> = {}
+  if (typeof body?.emailTips === "boolean") data.email_tips = body.emailTips
+  if (body?.reportStorage === "local" || body?.reportStorage === "cloud") {
+    data.report_storage = body.reportStorage
+  }
+  if (!Object.keys(data).length) {
     return NextResponse.json(
-      { error: "emailTips must be true or false." },
+      {
+        error:
+          "Send emailTips (true or false) or reportStorage (local or cloud).",
+      },
       { status: 400 }
     )
   }
 
   const supabase = await createSupabaseRouteClient()
-  const { error } = await supabase.auth.updateUser({
-    data: { email_tips: body.emailTips },
-  })
+  const { error } = await supabase.auth.updateUser({ data })
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 })
   }
-  return NextResponse.json({ emailTips: body.emailTips })
+  return NextResponse.json({
+    emailTips: body.emailTips,
+    reportStorage: body.reportStorage,
+  })
 }
 
 /** Permanently deletes the signed-in user's account. */

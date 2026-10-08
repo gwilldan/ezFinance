@@ -1,8 +1,8 @@
 "use client"
 
-import type { StatementReport } from "@/lib/bank-statement/schema"
 import { formatMoney, formatPercent } from "@/lib/format"
-import { useStoredReport } from "@/lib/report-store"
+import { saveLocalMessages, useLocalReport } from "@/lib/report-store"
+import type { ReportStorage, SavedReport } from "@/lib/reports/types"
 import {
   AlertTriangle,
   ArrowDownRight,
@@ -14,41 +14,112 @@ import {
   WalletCards,
 } from "lucide-react"
 import Link from "next/link"
-import { useState, type ReactNode } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { BalanceChart } from "./balance-chart"
 import { ChatSidebar } from "./chat-sidebar"
 import { SpendingBreakdown } from "./spending-breakdown"
 import { TransactionsTable } from "./transactions-table"
 
-export function ReportPage() {
-  const report = useStoredReport()
+/** A report saved on this device, falling back to the cloud if asked. */
+export function DeviceReport({
+  userId,
+  id,
+  checkCloud,
+}: {
+  userId: string
+  id: string
+  checkCloud: boolean
+}) {
+  const local = useLocalReport(userId, id)
+  const [cloud, setCloud] = useState<SavedReport | null | undefined>(undefined)
+  const lookInCloud = local === null && checkCloud
 
-  if (!report) {
-    return (
-      <main className="min-h-[70vh] bg-[#f7f8fa] px-6 py-24">
-        <div className="mx-auto max-w-xl rounded-3xl bg-white p-10 text-center shadow-sm ring-1 ring-slate-100">
-          <WalletCards className="mx-auto h-10 w-10 text-slate-400" />
-          <h1 className="mt-5 text-2xl font-semibold text-slate-800">
-            No report found
-          </h1>
-          <p className="mt-2 text-sm text-slate-500">
-            Upload a statement first and your completed report will appear here.
-          </p>
-          <Link
-            href="/"
-            className="mt-7 inline-flex rounded-xl bg-slate-900 px-5 py-3 text-sm font-medium text-white"
-          >
-            Analyze a statement
-          </Link>
-        </div>
-      </main>
-    )
+  useEffect(() => {
+    if (!lookInCloud) return
+    let cancelled = false
+    fetch(`/api/reports/${id}`)
+      .then((response) => (response.ok ? response.json() : null))
+      .catch(() => null)
+      .then((saved: SavedReport | null) => {
+        if (!cancelled) setCloud(saved)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [id, lookInCloud])
+
+  if (local) return <ReportView saved={local} storage="local" userId={userId} />
+  if (local === undefined || (lookInCloud && cloud === undefined)) {
+    return <ReportSkeleton />
   }
-
-  return <ReportContent report={report} />
+  if (cloud) return <ReportView saved={cloud} storage="cloud" userId={userId} />
+  return <ReportNotFound />
 }
 
-function ReportContent({ report }: { report: StatementReport }) {
+export function ReportNotFound() {
+  return (
+    <main className="min-h-[70vh] bg-[#f7f8fa] px-6 py-24">
+      <div className="mx-auto max-w-xl rounded-3xl bg-white p-10 text-center shadow-sm ring-1 ring-slate-100">
+        <WalletCards className="mx-auto h-10 w-10 text-slate-400" />
+        <h1 className="mt-5 text-2xl font-semibold text-slate-800">
+          Report not found
+        </h1>
+        <p className="mt-2 text-sm text-slate-500">
+          This report isn&apos;t saved on this device or in your account.
+          Reports kept on a device can only be opened on that device.
+        </p>
+        <Link
+          href="/"
+          className="mt-7 inline-flex rounded-xl bg-slate-900 px-5 py-3 text-sm font-medium text-white"
+        >
+          Analyze a statement
+        </Link>
+      </div>
+    </main>
+  )
+}
+
+/** Placeholder layout while a report loads. */
+export function ReportSkeleton() {
+  return (
+    <main
+      className="min-h-screen bg-[#f7f8fa] px-5 py-8 sm:px-8 lg:px-12"
+      aria-busy="true"
+      aria-label="Loading your report"
+    >
+      <div className="mx-auto max-w-6xl animate-pulse">
+        <div className="h-4 w-40 rounded bg-slate-200" />
+        <div className="mt-8 border-b border-slate-200 pb-8">
+          <div className="h-3 w-32 rounded bg-slate-200" />
+          <div className="mt-4 h-10 w-full max-w-md rounded-lg bg-slate-200" />
+          <div className="mt-4 h-4 w-64 rounded bg-slate-200" />
+        </div>
+        <div className="mt-8 grid gap-4 lg:grid-cols-[1.4fr_repeat(3,1fr)]">
+          <div className="h-40 rounded-3xl bg-slate-300/70" />
+          <div className="h-40 rounded-3xl bg-white ring-1 ring-slate-100" />
+          <div className="h-40 rounded-3xl bg-white ring-1 ring-slate-100" />
+          <div className="h-40 rounded-3xl bg-white ring-1 ring-slate-100" />
+        </div>
+        <div className="mt-8 h-80 rounded-3xl bg-white ring-1 ring-slate-100" />
+        <div className="mt-8 grid gap-6 lg:grid-cols-[1.35fr_1fr]">
+          <div className="h-64 rounded-3xl bg-white ring-1 ring-slate-100" />
+          <div className="h-64 rounded-3xl bg-white ring-1 ring-slate-100" />
+        </div>
+      </div>
+    </main>
+  )
+}
+
+export function ReportView({
+  saved,
+  storage,
+  userId,
+}: {
+  saved: SavedReport
+  storage: ReportStorage
+  userId: string
+}) {
+  const { report } = saved
   const { snapshot } = report
   const currency = report.currency || "NGN"
   const [chatOpen, setChatOpen] = useState(false)
@@ -251,8 +322,8 @@ function ReportContent({ report }: { report: StatementReport }) {
 
         <section className="mt-8 rounded-3xl bg-white p-7 shadow-sm ring-1 ring-slate-100">
           <SectionHeading
-            title="Recent transactions"
-            subtitle={`${report.activity.activeDays} active day${report.activity.activeDays === 1 ? "" : "s"} · ${report.transactions.length} total transaction${report.transactions.length === 1 ? "" : "s"}`}
+            title="Transactions"
+            subtitle={`In statement order · ${report.activity.activeDays} active day${report.activity.activeDays === 1 ? "" : "s"} · ${report.transactions.length} total transaction${report.transactions.length === 1 ? "" : "s"}`}
           />
           <TransactionsTable
             transactions={report.transactions}
@@ -274,7 +345,20 @@ function ReportContent({ report }: { report: StatementReport }) {
         ) : null}
       </div>
 
-      <ChatSidebar report={report} open={chatOpen} onOpenChange={setChatOpen} />
+      <ChatSidebar
+        key={saved.id}
+        reportId={saved.id}
+        report={report}
+        storage={storage}
+        initialMessages={saved.messages}
+        onMessagesChange={
+          storage === "local"
+            ? (messages) => saveLocalMessages(userId, saved.id, messages)
+            : undefined
+        }
+        open={chatOpen}
+        onOpenChange={setChatOpen}
+      />
     </main>
   )
 }

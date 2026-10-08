@@ -31,10 +31,6 @@ export function TransactionsTable({
   const [category, setCategory] = useState<Category | null>(null)
   const [page, setPage] = useState(1)
 
-  const newestFirst = useMemo(
-    () => [...transactions].sort((a, b) => b.date.localeCompare(a.date)),
-    [transactions]
-  )
   const categoryItems = useMemo(
     () => [
       { label: "All categories", value: null },
@@ -46,11 +42,13 @@ export function TransactionsTable({
   )
   const filtered = useMemo(
     () =>
-      filterTransactions(newestFirst, {
+      // Rows keep the order they appear in the statement, so they can be
+      // checked against it line by line.
+      filterTransactions(transactions, {
         search,
         category: category ?? undefined,
       }),
-    [newestFirst, search, category]
+    [transactions, search, category]
   )
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))

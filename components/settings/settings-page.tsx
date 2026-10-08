@@ -2,25 +2,61 @@
 
 import { UsageCard } from "@/components/billing/usage-card"
 import type { UsageSummary } from "@/lib/billing/types"
-import { clearReport } from "@/lib/report-store"
-import { Check, Database, Trash2 } from "lucide-react"
+import { clearLocalReports } from "@/lib/report-store"
+import type { ReportStorage } from "@/lib/reports/types"
+import {
+  Check,
+  Cloud,
+  Database,
+  Laptop,
+  ShieldCheck,
+  Trash2,
+  TriangleAlert,
+} from "lucide-react"
 import type { ReactNode } from "react"
 import { useState } from "react"
 import { ConfirmDialog } from "./confirm-dialog"
 
 type Dialog = "data" | "account" | null
+type SaveState = "idle" | "saved" | "error"
+
+const STORAGE_OPTIONS: {
+  value: ReportStorage
+  title: string
+  description: string
+  icon: ReactNode
+}[] = [
+  {
+    value: "local",
+    title: "This device",
+    description: "Reports are saved in this browser only.",
+    icon: <Laptop className="size-4" />,
+  },
+  {
+    value: "cloud",
+    title: "ezFinance cloud",
+    description: "Reports are saved, encrypted, to your account.",
+    icon: <Cloud className="size-4" />,
+  },
+]
 
 export function SettingsPage({
+  userId,
   email,
   usage,
   emailTips: initialEmailTips,
+  reportStorage: initialReportStorage,
 }: {
+  userId: string
   email: string
   usage: UsageSummary
   emailTips: boolean
+  reportStorage: ReportStorage
 }) {
   const [emailTips, setEmailTips] = useState(initialEmailTips)
-  const [saveState, setSaveState] = useState<"idle" | "saved" | "error">("idle")
+  const [saveState, setSaveState] = useState<SaveState>("idle")
+  const [reportStorage, setReportStorage] = useState(initialReportStorage)
+  const [storageSaveState, setStorageSaveState] = useState<SaveState>("idle")
   const [dialog, setDialog] = useState<Dialog>(null)
   const [dataCleared, setDataCleared] = useState(false)
 
@@ -41,6 +77,37 @@ export function SettingsPage({
     }
   }
 
+  async function changeReportStorage(next: ReportStorage) {
+    const previous = reportStorage
+    setReportStorage(next)
+    setStorageSaveState("idle")
+    const response = await fetch("/api/account", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reportStorage: next }),
+    }).catch(() => null)
+
+    if (response?.ok) {
+      setStorageSaveState("saved")
+    } else {
+      setReportStorage(previous)
+      setStorageSaveState("error")
+    }
+  }
+
+  async function deleteAnalysisData() {
+    const response = await fetch("/api/reports", { method: "DELETE" })
+    if (!response.ok) {
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string
+      }
+      throw new Error(data.error ?? "Unable to delete your saved reports.")
+    }
+    clearLocalReports(userId)
+    setDataCleared(true)
+    setDialog(null)
+  }
+
   async function deleteAccount() {
     const response = await fetch("/api/account", { method: "DELETE" })
     if (!response.ok) {
@@ -49,7 +116,7 @@ export function SettingsPage({
       }
       throw new Error(data.error ?? "Unable to delete your account.")
     }
-    clearReport()
+    clearLocalReports(userId)
     window.location.href = "/"
   }
 
@@ -83,17 +150,64 @@ export function SettingsPage({
               links, receipts and billing notices always arrive.
             </span>
           </label>
-          <p className="mt-2 h-5 pl-7 text-xs" role="status">
-            {saveState === "saved" ? (
-              <span className="inline-flex items-center gap-1 text-cyan-accent">
-                <Check className="size-3.5" /> Saved
-              </span>
-            ) : saveState === "error" ? (
-              <span className="text-red-600">
-                Couldn&apos;t save. Please try again.
-              </span>
-            ) : null}
+          <SaveStatus state={saveState} className="pl-7" />
+        </section>
+
+        <section className="mt-10">
+          <h2 className="text-xl font-semibold tracking-[-0.03em]">
+            Statement storage
+          </h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Choose where new reports and their chats are saved. Reports you
+            already have stay where they are.
           </p>
+          <div
+            role="radiogroup"
+            aria-label="Statement storage"
+            className="mt-5 grid gap-3 sm:grid-cols-2"
+          >
+            {STORAGE_OPTIONS.map((option) => (
+              <label
+                key={option.value}
+                className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 text-sm transition-colors has-focus-visible:ring-2 has-focus-visible:ring-cyan-accent ${reportStorage === option.value ? "border-cyan-accent bg-cyan-accent-soft" : "border-border bg-card hover:bg-muted"}`}
+              >
+                <input
+                  type="radio"
+                  name="report-storage"
+                  value={option.value}
+                  checked={reportStorage === option.value}
+                  onChange={() => void changeReportStorage(option.value)}
+                  className="mt-1 size-4 shrink-0 accent-cyan-accent"
+                />
+                <span>
+                  <span className="flex items-center gap-2 font-semibold">
+                    {option.icon} {option.title}
+                  </span>
+                  <span className="mt-1 block leading-6 text-muted-foreground">
+                    {option.description}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </div>
+          {reportStorage === "local" ? (
+            <p className="mt-4 flex gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-800">
+              <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+              Reports saved on this device are tied to this browser only. They
+              won&apos;t appear on your other devices, and they&apos;re lost if
+              you clear your browser data. Keeping them is up to you.
+            </p>
+          ) : (
+            <p className="mt-4 flex gap-2 rounded-xl border border-cyan-accent/20 bg-cyan-accent-soft p-3 text-xs leading-5 text-foreground">
+              <ShieldCheck
+                className="mt-0.5 size-4 shrink-0 text-cyan-accent"
+                aria-hidden
+              />
+              Reports saved to the cloud are encrypted and can only be opened
+              when you&apos;re signed in to your account.
+            </p>
+          )}
+          <SaveStatus state={storageSaveState} />
         </section>
 
         <section className="mt-10">
@@ -110,7 +224,7 @@ export function SettingsPage({
               icon={<Database className="size-4" />}
               iconClass="bg-cyan-accent-soft text-cyan-accent"
               title="Delete analysis data"
-              description="Remove the report saved in this browser. Your statements are never stored on our servers."
+              description="Remove every report and chat saved in this browser and in your ezFinance cloud."
               action={
                 <button
                   type="button"
@@ -144,13 +258,9 @@ export function SettingsPage({
       {dialog === "data" ? (
         <ConfirmDialog
           title="Delete analysis data?"
-          description="This removes your latest report from this browser. You can analyze a statement again at any time."
+          description="This permanently removes your saved reports and their chats from this browser and from your ezFinance cloud. You can analyze a statement again at any time."
           confirmLabel="Delete data"
-          onConfirm={async () => {
-            clearReport()
-            setDataCleared(true)
-            setDialog(null)
-          }}
+          onConfirm={deleteAnalysisData}
           onClose={() => setDialog(null)}
         />
       ) : null}
@@ -165,6 +275,28 @@ export function SettingsPage({
         />
       ) : null}
     </main>
+  )
+}
+
+function SaveStatus({
+  state,
+  className = "",
+}: {
+  state: SaveState
+  className?: string
+}) {
+  return (
+    <p className={`mt-2 h-5 text-xs ${className}`} role="status">
+      {state === "saved" ? (
+        <span className="inline-flex items-center gap-1 text-cyan-accent">
+          <Check className="size-3.5" /> Saved
+        </span>
+      ) : state === "error" ? (
+        <span className="text-red-600">
+          Couldn&apos;t save. Please try again.
+        </span>
+      ) : null}
+    </p>
   )
 }
 
