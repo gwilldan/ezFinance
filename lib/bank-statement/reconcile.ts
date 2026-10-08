@@ -6,11 +6,16 @@ const MONTH_DAYS = 31
 const MAX_SIGN_RUN = 60
 // Most same-day rows reordered at one break in the balance chain.
 const MAX_REORDER = 10
+// Most rows in a row whose balances are rebuilt from their amounts.
+const MAX_MISREAD = 3
+// Longest stretch of invented balances (a fixed amount off) that gets shifted.
+const MAX_OFFSET_RUN = 200
 
 export type ReconcileStats = {
   datesFixed: number
   swapsFixed: number
   reordered: number
+  offsetsFixed: number
   overdraftsFixed: number
   balancesCorrected: number
   directionsFixed: number
@@ -26,7 +31,9 @@ export type ReconcileStats = {
  * 2. same-day rows printed out of balance order are put back in order,
  * 3. overdrawn rows are repaired: a dropped minus sign on the balance, or the
  *    balance copied into the amount,
- * 4. a single misread balance is corrected when its neighbours agree on it,
+ * 4. a stretch of balances the model invented (a fixed amount off) is
+ *    shifted back, and a few misread balances are rebuilt from their
+ *    amounts when only one reading fits between their neighbours,
  * 5. each row's direction is taken from its balance change, and
  * 6. missing balances are filled only when the amounts add up exactly
  *    between two known balances.
@@ -44,6 +51,7 @@ export function reconcileBalances(transactions: Transaction[]): {
     datesFixed,
     swapsFixed: fixSwaps(rows),
     reordered: fixOrder(rows),
+    offsetsFixed: fixOffsetRuns(rows),
     overdraftsFixed: fixOverdrafts(rows),
     balancesCorrected: 0,
     directionsFixed: 0,
@@ -223,34 +231,96 @@ function chainOrder(
 }
 
 /**
- * A misread balance: the row doesn't chain, but exactly one of the balances
- * its amount allows (either direction) leads into the next row.
+ * Misread balances on up to MAX_MISREAD rows in a row: their balances are
+ * rebuilt from the row before using their amounts, and kept only when
+ * exactly one choice of directions leads into the row after.
  */
 function fixMisreadBalances(rows: Transaction[]): number {
   let fixed = 0
-  for (let i = 1; i + 1 < rows.length; i += 1) {
+  for (let i = 1; i < rows.length; i += 1) {
     const previous = rows[i - 1].balance
-    const row = rows[i]
-    const next = rows[i + 1]
-    if (
-      previous === undefined ||
-      row.balance === undefined ||
-      next.balance === undefined ||
-      chains(previous, row) ||
-      chains(row.balance, next)
-    ) {
-      continue
-    }
+    if (previous === undefined || chains(previous, rows[i])) continue
 
-    const fits = [previous + row.amount, previous - row.amount]
-      .map(round)
-      .filter((balance) => chains(balance, next))
-    if (fits.length === 1) {
-      rows[i] = { ...row, balance: fits[0] }
-      fixed += 1
+    for (let size = 1; size <= MAX_MISREAD; size += 1) {
+      const next = rows[i + size]
+      if (next?.balance === undefined) break
+      const group = rows.slice(i, i + size)
+      if (group.some((row) => row.balance === undefined)) break
+
+      const fits = directionChoices(size)
+        .map((signs) => {
+          let balance = previous
+          return group.map((row, index) => {
+            balance = round(balance + signs[index] * row.amount)
+            return { ...row, balance }
+          })
+        })
+        .filter((rebuilt) => chains(rebuilt.at(-1)!.balance!, next))
+      if (fits.length === 1) {
+        rows.splice(i, size, ...fits[0])
+        fixed += size
+        i += size - 1
+        break
+      }
+      if (fits.length > 1) break
     }
   }
   return fixed
+}
+
+/** Every combination of +1 (money in) and -1 (money out) for `size` rows. */
+function directionChoices(size: number): number[][] {
+  return Array.from({ length: 2 ** size }, (_, bits) =>
+    Array.from({ length: size }, (_, index) => ((bits >> index) & 1 ? 1 : -1))
+  )
+}
+
+/**
+ * The model sometimes invents one balance and then calculates the rest from
+ * it, leaving a stretch of rows that chain with each other but sit a fixed
+ * amount off. The offset is measured where the stretch starts and the
+ * stretch is shifted back, only once a later row confirms it: it chains from
+ * the shifted balance, or its amount is a copied balance and its own
+ * balance leads on.
+ */
+function fixOffsetRuns(rows: Transaction[]): number {
+  let fixed = 0
+  for (let i = 1; i < rows.length; i += 1) {
+    const previous = rows[i - 1].balance
+    const row = rows[i]
+    if (previous === undefined || row.balance === undefined) continue
+    if (chains(previous, row) || copiedBalance(row)) continue
+    // The offset is measured from the row before, so it must be confirmed.
+    const before = rows[i - 2]?.balance
+    if (before !== undefined && !chains(before, rows[i - 1])) continue
+
+    const expected = previous + signed(row)
+    const offset = round(row.balance - expected)
+    const end = offsetRunEnd(rows, i, offset)
+    if (end === undefined) continue
+
+    for (let j = i; j <= end; j += 1) {
+      rows[j] = { ...rows[j], balance: round(rows[j].balance! - offset) }
+    }
+    fixed += end - i + 1
+    i = end
+  }
+  return fixed
+}
+
+function offsetRunEnd(rows: Transaction[], start: number, offset: number) {
+  if (offset === 0) return undefined
+  for (let end = start; end < start + MAX_OFFSET_RUN; end += 1) {
+    const balance = rows[end]?.balance
+    const next = rows[end + 1]
+    if (balance === undefined || next?.balance === undefined) return undefined
+    if (chains(balance, next)) continue
+    if (chains(balance - offset, next)) return end
+    if (copiedBalance(next) && chains(next.balance, rows[end + 2] ?? next))
+      return end
+    return undefined
+  }
+  return undefined
 }
 
 /**
