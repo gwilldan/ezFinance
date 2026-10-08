@@ -54,7 +54,7 @@ const BALANCE_TOOL: Tool = {
   function: {
     name: "get_balance_history",
     description:
-      "The account balance over time, as plotted on the report's balance chart. Returns the balance after the first and last transactions in range, the lowest and highest balance with their dates, and the closing balance per day, week (keyed by its Monday) or month.",
+      "The account balance over time, as plotted on the report's balance chart. Returns the balance after the first and last transactions in range, the lowest and highest balance with their dates, and every closing balance per day, week (keyed by its Monday) or month in the range.",
     parameters: {
       type: "object",
       properties: {
@@ -167,12 +167,7 @@ function balanceHistory(report: StatementReport, args: BalanceArgs): string {
     lowest: [lowest.date, lowest.balance],
     highest: [highest.date, highest.balance],
     closingBalanceColumns: [PERIOD_COLUMN[args.period], "closingBalance"],
-    closingBalances: series
-      .slice(-MAX_ROWS)
-      .map(({ period, balance }) => [period, balance]),
-    ...(series.length > MAX_ROWS
-      ? { note: `Showing the last ${MAX_ROWS} ${args.period} balances` }
-      : {}),
+    closingBalances: series.map(({ period, balance }) => [period, balance]),
   })
 }
 

@@ -1,11 +1,17 @@
 import { chatCompletion } from "@/lib/llm"
-import { reconcileBalances } from "./reconcile"
+import { chainBreaks, reconcileBalances } from "./reconcile"
 import { CATEGORIES, type Category, type Transaction } from "./schema"
 
 // Each chunk is one parallel LLM call. Smaller chunks mean less output per
 // call (output tokens dominate latency), at the cost of more requests.
 const CHUNK_CHARS = 6_000
 const CONCURRENCY = 8
+// Reads per chunk at most: the first plus retries while rows still don't chain.
+const MAX_ATTEMPTS = 3
+// Re-read rounds for chunks whose balances break against their neighbours,
+// and how many neighbouring rows that check includes on each side.
+const BOUNDARY_ROUNDS = 2
+const BOUNDARY_ROWS = 3
 const FALLBACK_CURRENCY = "NGN"
 const SUPPORTED_CURRENCIES = new Set(Intl.supportedValuesOf("currency"))
 
@@ -17,7 +23,8 @@ const SYSTEM_PROMPT = `You extract bank statement transactions. Reply with JSON 
 - merchant: short clean counterparty name, e.g. "Uber", "MTN", "John Doe"
 - amount: positive number
 - type: "D" for money out, "C" for money in
-- balance: the balance after the transaction, usually the last amount in the row. Always fill it in when the row shows one; null only if the row truly has none
+- balance: the balance after the transaction, usually the last amount in the row. Always fill it in when the row shows one; null only if the row truly has none. Copy it exactly as printed; never calculate it. An overdrawn balance is negative: keep the sign when it's shown as "-1,234.00", "(1,234.00)" or "1,234.00 DR", and add none that isn't printed
+- the amount and the balance are always two different numbers in the row; never copy the balance into the amount, even when the balance is negative
 - category: one of ${CATEGORIES.join(", ")}
 Rows may wrap across several lines; join them. Later pages often repeat no column titles, so use the "Columns:" line given with the text. Narration labels such as "inward transfer" can be wrong: fees, charges, VAT, levies and stamp duty are money out; reversals and refunds are money in.
 Do not invent rows. Skip page headers, column titles, totals, account details, and opening/closing balance lines. Categorize credits as Income unless they are clearly transfers or refunds. Keep the statement order. If there are no transactions, return {"currency":null,"rows":[]}.`
@@ -50,6 +57,7 @@ export async function extractTransactions(
         extractChunkWithRetry(chunk)
       )
   )
+  await rereadBrokenBoundaries(chunks, results)
   const { transactions, stats } = reconcileBalances(
     results.flatMap((result) => result.transactions)
   )
@@ -62,20 +70,77 @@ export async function extractTransactions(
   return { transactions, currency: currency ?? FALLBACK_CURRENCY }
 }
 
-/** Retries once on errors, or when most rows came back without a balance. */
+/**
+ * Re-reads a chunk whose rows still don't chain after reconciling, or that
+ * mostly lack balances, and keeps the cleanest read. Reads vary, so a misread
+ * row is usually right on another attempt; clean chunks cost one call.
+ */
 async function extractChunkWithRetry(text: string): Promise<ChunkExtraction> {
-  const first = await extractChunk(text).catch(() => undefined)
-  if (first && missingBalanceRatio(first.transactions) <= 0.5) return first
+  let best: { result: ChunkExtraction; score: number } | undefined
+  let lastError: unknown
 
-  const second = await extractChunk(text).catch((error) => {
-    if (first) return first
-    throw error
-  })
-  return first &&
-    missingBalanceRatio(first.transactions) <
-      missingBalanceRatio(second.transactions)
-    ? first
-    : second
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+    // Retries vary the read a little; the first is as deterministic as it gets.
+    const result = await extractChunk(text, attempt ? 0.3 : 0).catch(
+      (error) => {
+        lastError = error
+        return undefined
+      }
+    )
+    if (!result) continue
+
+    const score = readScore(result.transactions)
+    if (!best || score < best.score) best = { result, score }
+    if (best.score === 0) break
+  }
+
+  if (!best) throw lastError
+  return best.result
+}
+
+/**
+ * A chunk only checks its own rows, so a misread first row (or one that
+ * throws off every balance after it) can't be caught inside it. Each chunk is
+ * checked again between the end of the chunk before and the start of the
+ * chunk after, and re-read where the balances break; a re-read is kept only
+ * when it breaks less.
+ */
+async function rereadBrokenBoundaries(
+  chunks: string[],
+  results: ChunkExtraction[]
+) {
+  for (let round = 0; round < BOUNDARY_ROUNDS; round += 1) {
+    const broken = results.flatMap((_, index) =>
+      boundaryBreaks(results, index) ? [index] : []
+    )
+    if (!broken.length) return
+
+    await mapWithConcurrency(broken, CONCURRENCY, async (index) => {
+      const reread = await extractChunk(chunks[index], 0.3).catch(
+        () => undefined
+      )
+      if (!reread) return
+      const candidate = results.with(index, reread)
+      if (boundaryBreaks(candidate, index) < boundaryBreaks(results, index)) {
+        results[index] = reread
+      }
+    })
+  }
+}
+
+/** Breaks in a chunk read together with its neighbours' adjoining rows. */
+function boundaryBreaks(results: ChunkExtraction[], index: number) {
+  return chainBreaks([
+    ...(results[index - 1]?.transactions.slice(-BOUNDARY_ROWS) ?? []),
+    ...results[index].transactions,
+    ...(results[index + 1]?.transactions.slice(0, BOUNDARY_ROWS) ?? []),
+  ])
+}
+
+/** Lower is better: breaks left after reconciling, then missing balances. */
+function readScore(transactions: Transaction[]) {
+  const missing = missingBalanceRatio(transactions)
+  return chainBreaks(transactions) + (missing > 0.5 ? missing : 0)
 }
 
 function missingBalanceRatio(transactions: Transaction[]) {
@@ -120,9 +185,12 @@ export function elapsed(startedAt: number): string {
   return `${((performance.now() - startedAt) / 1000).toFixed(2)}s`
 }
 
-async function extractChunk(text: string): Promise<ChunkExtraction> {
+async function extractChunk(
+  text: string,
+  temperature: number
+): Promise<ChunkExtraction> {
   const response = await chatCompletion({
-    temperature: 0,
+    temperature,
     response_format: { type: "json_object" },
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
@@ -260,9 +328,14 @@ function asString(value: unknown): string {
 
 function asNumber(value: unknown): number {
   if (typeof value === "number") return value
-  if (typeof value === "string" && value.trim())
-    return Number(value.replace(/[^\d.+-]/g, ""))
-  return Number.NaN
+  if (typeof value !== "string" || !value.trim()) return Number.NaN
+
+  const text = value.trim()
+  // Overdrawn amounts: "(1,234.00)", "1,234.00 DR", "1,234.00-".
+  const negative =
+    /^\(.*\)$/.test(text) || /\bDR\.?$/i.test(text) || /\d-$/.test(text)
+  const number = Number(text.replace(/[^\d.+-]/g, "").replace(/(?<=\d)-$/, ""))
+  return negative ? -Math.abs(number) : number
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

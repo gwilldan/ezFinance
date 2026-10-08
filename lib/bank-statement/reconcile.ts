@@ -2,10 +2,17 @@ import { statementOrder } from "./analyze"
 import type { Transaction } from "./schema"
 
 const MONTH_DAYS = 31
+// Longest stretch of balances that lost their minus sign that gets restored.
+const MAX_SIGN_RUN = 60
+// Most same-day rows reordered at one break in the balance chain.
+const MAX_REORDER = 10
 
 export type ReconcileStats = {
   datesFixed: number
   swapsFixed: number
+  reordered: number
+  overdraftsFixed: number
+  balancesCorrected: number
   directionsFixed: number
   balancesFilled: number
   missingBalances: number
@@ -16,8 +23,12 @@ export type ReconcileStats = {
  * "inward transfer" on a stamp-duty charge mislead the model, so:
  * 0. dates misread as MM/DD (an outlier among its neighbours) are fixed,
  * 1. rows where the model swapped amount and balance are swapped back,
- * 2. each row's direction is taken from its balance change, and
- * 3. missing balances are filled only when the amounts add up exactly
+ * 2. same-day rows printed out of balance order are put back in order,
+ * 3. overdrawn rows are repaired: a dropped minus sign on the balance, or the
+ *    balance copied into the amount,
+ * 4. a single misread balance is corrected when its neighbours agree on it,
+ * 5. each row's direction is taken from its balance change, and
+ * 6. missing balances are filled only when the amounts add up exactly
  *    between two known balances.
  */
 export function reconcileBalances(transactions: Transaction[]): {
@@ -32,11 +43,15 @@ export function reconcileBalances(transactions: Transaction[]): {
   const stats = {
     datesFixed,
     swapsFixed: fixSwaps(rows),
+    reordered: fixOrder(rows),
+    overdraftsFixed: fixOverdrafts(rows),
+    balancesCorrected: 0,
     directionsFixed: 0,
     balancesFilled: 0,
     missingBalances: 0,
   }
 
+  stats.balancesCorrected = fixMisreadBalances(rows)
   stats.directionsFixed += fixDirections(rows)
 
   for (let start = 0; start < rows.length; start += 1) {
@@ -139,6 +154,189 @@ function fixSwaps(rows: Transaction[]): number {
     }
   }
   return fixed
+}
+
+/** Rows whose balance doesn't follow from the row before, after reconciling. */
+export function chainBreaks(transactions: Transaction[]): number {
+  const rows = statementOrder(
+    reconcileBalances(transactions).transactions
+  ).oldestFirst
+  return rows.filter((row, i) => {
+    const previous = rows[i - 1]?.balance
+    return previous !== undefined && row.balance !== undefined
+      ? !chains(previous, row)
+      : false
+  }).length
+}
+
+/**
+ * Some banks print rows from the same second (a transfer, its VAT and stamp
+ * duty) in any order, though the balances apply them in one order. Where
+ * the chain breaks, the next few same-day rows are put in the order whose
+ * balances chain, from the row before through to the row after.
+ */
+function fixOrder(rows: Transaction[]): number {
+  let fixed = 0
+  for (let i = 1; i < rows.length; i += 1) {
+    const previous = rows[i - 1].balance
+    if (previous === undefined || chains(previous, rows[i])) continue
+
+    const day = rows[i].date.slice(0, 10)
+    for (let size = 2; size <= MAX_REORDER; size += 1) {
+      const group = rows.slice(i, i + size)
+      if (
+        group.length < size ||
+        group.some((row) => row.date.slice(0, 10) !== day)
+      ) {
+        break
+      }
+      const order = chainOrder(group, previous)
+      const next = rows[i + size]
+      const last = order?.at(-1)?.balance
+      if (
+        order &&
+        last !== undefined &&
+        (next?.balance === undefined || chains(last, next))
+      ) {
+        rows.splice(i, size, ...order)
+        fixed += 1
+        i += size - 1
+        break
+      }
+    }
+  }
+  return fixed
+}
+
+/** An order of `group` in which every balance chains from `start`. */
+function chainOrder(
+  group: Transaction[],
+  start: number
+): Transaction[] | undefined {
+  if (!group.length) return []
+  for (const [index, row] of group.entries()) {
+    if (!chains(start, row)) continue
+    const rest = chainOrder(group.toSpliced(index, 1), row.balance!)
+    if (rest) return [row, ...rest]
+  }
+  return undefined
+}
+
+/**
+ * A misread balance: the row doesn't chain, but exactly one of the balances
+ * its amount allows (either direction) leads into the next row.
+ */
+function fixMisreadBalances(rows: Transaction[]): number {
+  let fixed = 0
+  for (let i = 1; i + 1 < rows.length; i += 1) {
+    const previous = rows[i - 1].balance
+    const row = rows[i]
+    const next = rows[i + 1]
+    if (
+      previous === undefined ||
+      row.balance === undefined ||
+      next.balance === undefined ||
+      chains(previous, row) ||
+      chains(row.balance, next)
+    ) {
+      continue
+    }
+
+    const fits = [previous + row.amount, previous - row.amount]
+      .map(round)
+      .filter((balance) => chains(balance, next))
+    if (fits.length === 1) {
+      rows[i] = { ...row, balance: fits[0] }
+      fixed += 1
+    }
+  }
+  return fixed
+}
+
+/**
+ * Overdrawn balances ("-₦2,908.76", "2,908.76 DR") trip the model in two ways.
+ * 1. It drops the minus sign, often on several rows in a row. Flipping a run
+ *    of balances keeps the changes inside it, so a run is made negative only
+ *    when that mends both the break into it and the break out of it.
+ * 2. It copies the balance into the amount. The amount is then the balance
+ *    change, when that leads into the next row.
+ */
+function fixOverdrafts(rows: Transaction[]): number {
+  let fixed = 0
+
+  for (let i = 1; i < rows.length; i += 1) {
+    const previous = rows[i - 1].balance
+    if (previous === undefined || rows[i].balance === undefined) continue
+    if (chains(previous, rows[i])) continue
+
+    const end = signRunEnd(rows, i, previous)
+    if (end === undefined) continue
+    for (let j = i; j <= end; j += 1) {
+      rows[j] = { ...rows[j], balance: -rows[j].balance! }
+    }
+    fixed += end - i + 1
+    i = end
+  }
+
+  for (let i = 1; i < rows.length; i += 1) {
+    const previous = rows[i - 1].balance
+    const row = rows[i]
+    if (previous === undefined || row.balance === undefined) continue
+    if (chains(previous, row) || !copiedBalance(row)) continue
+
+    const repaired = { ...row, amount: round(Math.abs(row.balance - previous)) }
+    if (repaired.amount > 0 && leadsInto(row.balance, rows[i + 1])) {
+      rows[i] = repaired
+      fixed += 1
+    }
+  }
+  return fixed
+}
+
+/**
+ * The last row of the shortest run of positive balances starting at `start`
+ * that reads right once negative: it chains from `previous`, and the row
+ * after it chains from the run or shows a printed (so trusted) minus sign.
+ * A row whose amount is a copied balance can't chain, so it's let through.
+ */
+function signRunEnd(rows: Transaction[], start: number, previous: number) {
+  const first = rows[start]
+  const entry =
+    chains(previous, { ...first, balance: -first.balance! }) ||
+    copiedBalance(first)
+  if (!entry) return undefined
+
+  for (let end = start; end < start + MAX_SIGN_RUN; end += 1) {
+    const balance = rows[end]?.balance
+    // The model drops minus signs but doesn't add them.
+    if (balance === undefined || balance <= 0) return undefined
+    const next = rows[end + 1]
+    if (next?.balance === undefined) return undefined
+    if (chains(-balance, next) || (next.balance < 0 && copiedBalance(next)))
+      return end
+  }
+  return undefined
+}
+
+/** The amount is the size of the row's own balance, as when it was copied. */
+function copiedBalance(row: Transaction) {
+  return (
+    row.balance !== undefined && sameAmount(row.amount, Math.abs(row.balance))
+  )
+}
+
+/** The next row chains from `balance`, or its own amount is a copied balance. */
+function leadsInto(balance: number, next: Transaction | undefined) {
+  if (next?.balance === undefined) return true
+  return chains(balance, next) || copiedBalance(next)
+}
+
+/** The row's amount, in either direction, explains its balance change. */
+function chains(previous: number, row: Transaction) {
+  return (
+    row.balance !== undefined &&
+    sameAmount(Math.abs(row.balance - previous), row.amount)
+  )
 }
 
 /** Sets each row's direction from its balance change; returns rows changed. */
