@@ -130,6 +130,19 @@ export async function signUpWithEmail(
   })
 }
 
+/**
+ * How an email is already registered ("email", "google", …), or an empty list
+ * when it's free. See supabase/migrations/20261010000000_email_sign_in_methods.sql.
+ */
+export async function getEmailSignInMethods(email: string) {
+  const { data, error } = await createSupabaseAdminClient().rpc(
+    "email_sign_in_methods",
+    { p_email: email }
+  )
+  if (error) throw new Error(`Email lookup failed: ${error.message}`)
+  return (data ?? []) as string[]
+}
+
 export function getSupabaseAuthError(payload: SupabaseAuthPayload) {
   return (
     payload.error_description ??

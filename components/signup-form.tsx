@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { PasswordInput } from "@/components/password-input"
+import Link from "next/link"
 import { FormEvent, useState } from "react"
 
 function GoogleIcon() {
@@ -54,11 +55,16 @@ export function SignupForm({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Set when the email already has an account: how that account signs in.
+  const [signInWith, setSignInWith] = useState<"google" | "password" | null>(
+    null
+  )
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
     setMessage(null)
+    setSignInWith(null)
     setIsSubmitting(true)
 
     const formData = new FormData(event.currentTarget)
@@ -84,11 +90,16 @@ export function SignupForm({
       const data = (await response.json().catch(() => ({}))) as {
         message?: string
         error?: string
+        code?: string
+        signInWith?: "google" | "password"
         user?: { id?: string; email?: string }
       }
 
       if (!response.ok) {
         setError(data.error ?? "Unable to create account.")
+        if (data.code === "email_taken") {
+          setSignInWith(data.signInWith ?? "password")
+        }
         return
       }
 
@@ -105,6 +116,7 @@ export function SignupForm({
   async function handleGoogleSignup() {
     setError(null)
     setMessage(null)
+    setSignInWith(null)
 
     try {
       const response = await fetch("/api/auth/google", {
@@ -225,7 +237,8 @@ export function SignupForm({
               />
             </Field>
             {(error || message) && (
-              <p
+              <div
+                role={error ? "alert" : "status"}
                 className={cn(
                   "rounded-xl px-3 py-2 text-sm",
                   error
@@ -233,8 +246,34 @@ export function SignupForm({
                     : "bg-emerald-50 text-emerald-700"
                 )}
               >
-                {error ?? message}
-              </p>
+                <p>{error ?? message}</p>
+                {signInWith === "google" ? (
+                  <button
+                    type="button"
+                    className="mt-1.5 font-semibold text-slate-950 underline underline-offset-2"
+                    onClick={handleGoogleSignup}
+                  >
+                    Continue with Google
+                  </button>
+                ) : signInWith === "password" ? (
+                  onSwitchToLogin ? (
+                    <button
+                      type="button"
+                      className="mt-1.5 font-semibold text-slate-950 underline underline-offset-2"
+                      onClick={onSwitchToLogin}
+                    >
+                      Sign in
+                    </button>
+                  ) : (
+                    <Link
+                      href="/login"
+                      className="mt-1.5 inline-block font-semibold text-slate-950 underline underline-offset-2"
+                    >
+                      Sign in
+                    </Link>
+                  )
+                ) : null}
+              </div>
             )}
             <Field className="gap-4 pt-1">
               <Button
