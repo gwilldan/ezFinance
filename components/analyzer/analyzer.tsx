@@ -3,14 +3,14 @@
 import { UsageCard } from "@/components/billing/usage-card"
 import type { StatementReport } from "@/lib/bank-statement/schema"
 import { USAGE_LIMIT_CODE, type UsageSummary } from "@/lib/billing/types"
-import { formatDate } from "@/lib/format"
 import { saveLocalReport, useLocalReportSummaries } from "@/lib/report-store"
-import type { ReportStorage, ReportSummary } from "@/lib/reports/types"
-import { ArrowRight, ChevronRight, Cloud, FileUp, Laptop } from "lucide-react"
+import type { RecordedReport, ReportStorage } from "@/lib/reports/types"
+import { ArrowRight, FileUp } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react"
+import { ChangeEvent, useEffect, useRef, useState } from "react"
 import { PasswordModal, type PasswordReason } from "./password-modal"
+import { ReportHistory } from "./report-history"
 import { UploadStateCard } from "./upload-state-card"
 
 type UploadResponse = {
@@ -36,11 +36,11 @@ const LOADING_STAGE_INTERVAL = 8_000
 export default function Analyzer({
   userId,
   usage,
-  cloudHistory,
+  history,
 }: {
   userId: string
   usage: UsageSummary
-  cloudHistory: ReportSummary[]
+  history: RecordedReport[]
 }) {
   const router = useRouter()
   const inputRef = useRef<HTMLInputElement | null>(null)
@@ -132,13 +132,6 @@ export default function Analyzer({
   }
 
   const localHistory = useLocalReportSummaries(userId)
-  const history = useMemo(
-    () =>
-      [...localHistory, ...cloudHistory].sort((a, b) =>
-        b.generatedAt.localeCompare(a.generatedAt)
-      ),
-    [localHistory, cloudHistory]
-  )
 
   function chooseAnotherFile() {
     setLocked(null)
@@ -268,7 +261,7 @@ export default function Analyzer({
       <div className="mt-8 rounded-2xl bg-white p-6 shadow ring-1 ring-slate-100">
         <h3 className="text-sm font-medium text-slate-700">History</h3>
         <div className="mt-4">
-          <History items={history} />
+          <ReportHistory recorded={history} onDevice={localHistory} />
 
           <UsageCard usage={usage} />
         </div>
@@ -293,59 +286,6 @@ function UploadButton({
       <FileUp className="size-4" aria-hidden />
       {children}
     </button>
-  )
-}
-
-/** Saved statements, newest first. Each opens its report. */
-function History({ items }: { items: ReportSummary[] }) {
-  if (!items.length) {
-    return (
-      <div className="mx-auto my-4 max-w-2xl rounded-lg border-2 border-dashed border-slate-200 p-8 text-center text-sm text-slate-400">
-        Upload your first statement above
-        <div className="mt-1 text-xs text-muted-foreground">
-          Your analyses and tool runs will appear here.
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <ul className="my-4 divide-y divide-slate-100 rounded-xl border border-slate-100">
-      {items.map((item) => (
-        <li key={item.id}>
-          <Link
-            href={`/result/${item.id}`}
-            className="flex items-center gap-4 px-4 py-3 hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none"
-          >
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-medium text-slate-700">
-                {item.fileName}
-              </p>
-              <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                {item.statementPeriod} · {item.transactionCount} transaction
-                {item.transactionCount === 1 ? "" : "s"} · Analyzed{" "}
-                {formatDate(item.generatedAt)}
-              </p>
-            </div>
-            <span className="inline-flex shrink-0 items-center gap-1 text-xs text-slate-400">
-              {item.storage === "cloud" ? (
-                <>
-                  <Cloud className="size-3.5" aria-hidden /> Cloud
-                </>
-              ) : (
-                <>
-                  <Laptop className="size-3.5" aria-hidden /> This device
-                </>
-              )}
-            </span>
-            <ChevronRight
-              className="size-4 shrink-0 text-slate-300"
-              aria-hidden
-            />
-          </Link>
-        </li>
-      ))}
-    </ul>
   )
 }
 

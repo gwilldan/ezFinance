@@ -21,6 +21,20 @@ export type ReportSummary = {
   storage: ReportStorage
 }
 
+/**
+ * One row of the user's report history as the server knows it. Cloud reports
+ * carry their summary; device reports carry only when they were made, since
+ * their contents never leave the device that saved them.
+ */
+export type RecordedReport =
+  | {
+      id: string
+      generatedAt: string
+      storage: "cloud"
+      summary: ReportSummary
+    }
+  | { id: string; generatedAt: string; storage: "local" }
+
 /** Most chat messages kept with a statement. */
 export const MAX_SAVED_MESSAGES = 200
 

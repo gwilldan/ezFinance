@@ -19,6 +19,8 @@ type UsageRow = {
   agent_call_credits: number
   overage_reports: number
   overage_agent_calls: number
+  /** The email belonged to a deleted account, which already had the trial. */
+  free_trial_used: boolean
 }
 
 const PLANS: PlanId[] = ["free", "pro", "business"]
@@ -77,6 +79,8 @@ export async function getUsageSummary(userId: string): Promise<UsageSummary> {
   // that has already ended should read as fresh.
   const expired = monthly && addMonth(new Date(row.period_start)) <= new Date()
   const allowance = planAllowance(row.plan)
+  // A returning email's free allowance shows as spent; consume_usage agrees.
+  const trialSpent = row.plan === "free" && row.free_trial_used
 
   const meter = (
     included: number,
@@ -84,7 +88,7 @@ export async function getUsageSummary(userId: string): Promise<UsageSummary> {
     credits: number,
     overage: number
   ): UsageMeter => {
-    const spent = expired ? 0 : used
+    const spent = trialSpent ? included : expired ? 0 : used
     return {
       included,
       used: spent,
@@ -124,6 +128,7 @@ function emptyRow(): UsageRow {
     agent_call_credits: 0,
     overage_reports: 0,
     overage_agent_calls: 0,
+    free_trial_used: false,
   }
 }
 

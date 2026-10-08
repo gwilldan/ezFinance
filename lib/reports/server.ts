@@ -5,6 +5,7 @@ import { decryptJson, encryptJson } from "./crypto"
 import {
   isReportId,
   summarize,
+  type RecordedReport,
   type ReportStorage,
   type ReportSummary,
   type SavedReport,
@@ -101,19 +102,38 @@ export async function getCloudReport(
   }
 }
 
-export async function listCloudReports(
+/**
+ * Every report the user has made, newest first: cloud reports with their
+ * summary, device reports with only their date (see RecordedReport).
+ */
+export async function listReportHistory(
   userId: string
-): Promise<ReportSummary[]> {
+): Promise<RecordedReport[]> {
   const { data, error } = await createSupabaseAdminClient()
     .from(TABLE)
-    .select("id, summary")
+    .select("id, storage, generated_at, summary")
     .eq("user_id", userId)
-    .eq("storage", "cloud")
     .order("generated_at", { ascending: false })
-    .returns<Pick<ReportRow, "id" | "summary">[]>()
+    .returns<
+      {
+        id: string
+        storage: ReportStorage
+        generated_at: string
+        summary: string | null
+      }[]
+    >()
   if (error) throw new Error(`Report history failed: ${error.message}`)
 
-  return (data ?? []).map((row) => decryptJson<ReportSummary>(row.summary))
+  return (data ?? []).map((row) =>
+    row.storage === "cloud" && row.summary
+      ? {
+          id: row.id,
+          generatedAt: row.generated_at,
+          storage: "cloud",
+          summary: decryptJson<ReportSummary>(row.summary),
+        }
+      : { id: row.id, generatedAt: row.generated_at, storage: "local" }
+  )
 }
 
 export async function saveCloudMessages(
