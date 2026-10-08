@@ -343,7 +343,16 @@ export function ReportView({
             </p>
           </div>
         ) : null}
+
+         <Link
+          href="/"
+          className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-cyan-accent mt-10"
+        >
+          <ChevronLeft className="h-4 w-4" /> Upload another statement
+        </Link>
       </div>
+
+      
 
       <ChatSidebar
         key={saved.id}
