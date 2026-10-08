@@ -3,7 +3,7 @@ import { spendUsage } from "@/lib/billing/usage"
 import { buildReport } from "@/lib/bank-statement/build-report"
 import { elapsed, extractTransactions } from "@/lib/bank-statement/extract"
 import { PdfPasswordError, readPdfPages } from "@/lib/bank-statement/pdf"
-import { saveCloudReport } from "@/lib/reports/server"
+import { saveCloudReport, saveLocalReportLocation } from "@/lib/reports/server"
 import { reportStorageOf, type ReportStorage } from "@/lib/reports/types"
 import { getUserByAccessToken } from "@/lib/supabase/server"
 import { randomUUID } from "crypto"
@@ -80,11 +80,12 @@ async function analyzeStatement(
   console.info(`[upload] total for ${file.name}: ${elapsed(startedAt)}`)
 
   // Cloud reports are saved (encrypted) here; device reports go back to the
-  // browser, which saves them locally.
+  // browser, which saves them locally, and only their location is kept here.
   if (owner.storage === "cloud") {
     await saveCloudReport(owner.userId, id, report)
     return NextResponse.json({ id, storage: owner.storage })
   }
+  await saveLocalReportLocation(owner.userId, id, report)
   return NextResponse.json({ id, storage: owner.storage, report })
 }
 

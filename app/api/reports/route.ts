@@ -1,8 +1,8 @@
-import { deleteCloudReports } from "@/lib/reports/server"
+import { deleteReports } from "@/lib/reports/server"
 import { getSessionUser } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
-/** Deletes every cloud report the signed-in user has saved. */
+/** Deletes every cloud report, and every report location, the user has saved. */
 export async function DELETE() {
   const user = await getSessionUser()
   if (!user) {
@@ -13,7 +13,7 @@ export async function DELETE() {
   }
 
   try {
-    await deleteCloudReports(user.id)
+    await deleteReports(user.id)
     return NextResponse.json({ deleted: true })
   } catch (error) {
     console.error("Report deletion error", error)

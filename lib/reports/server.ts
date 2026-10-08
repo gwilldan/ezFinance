@@ -5,13 +5,16 @@ import { decryptJson, encryptJson } from "./crypto"
 import {
   isReportId,
   summarize,
+  type ReportStorage,
   type ReportSummary,
   type SavedReport,
 } from "./types"
 
 /**
- * Statements saved to the cloud. Every row is scoped to its owner and the
- * report, its summary and its chat are encrypted before they leave the server.
+ * Where every statement is kept, and the cloud statements themselves. Every
+ * row is scoped to its owner. Cloud rows carry the report, its summary and its
+ * chat, encrypted before they leave the server; device rows carry only the
+ * location.
  */
 
 type ReportRow = {
@@ -33,12 +36,47 @@ export async function saveCloudReport(
     .insert({
       id,
       user_id: userId,
+      storage: "cloud",
       generated_at: report.generatedAt,
       summary: encryptJson(summarize({ id, report }, "cloud")),
       report: encryptJson(report),
       messages: encryptJson([]),
     })
   if (error) throw new Error(`Couldn't save the report: ${error.message}`)
+}
+
+/** Records a report kept on the user's device: its location, never its data. */
+export async function saveLocalReportLocation(
+  userId: string,
+  id: string,
+  report: StatementReport
+) {
+  const { error } = await createSupabaseAdminClient().from(TABLE).insert({
+    id,
+    user_id: userId,
+    storage: "local",
+    generated_at: report.generatedAt,
+  })
+  if (error) throw new Error(`Couldn't save the report: ${error.message}`)
+}
+
+/**
+ * Where a report was saved, or `null` when there's no record of it (device
+ * reports saved before locations were recorded).
+ */
+export async function getReportStorage(
+  userId: string,
+  id: string
+): Promise<ReportStorage | null> {
+  if (!isReportId(id)) return null
+  const { data, error } = await createSupabaseAdminClient()
+    .from(TABLE)
+    .select("storage")
+    .eq("user_id", userId)
+    .eq("id", id)
+    .maybeSingle<{ storage: ReportStorage }>()
+  if (error) throw new Error(`Report lookup failed: ${error.message}`)
+  return data?.storage ?? null
 }
 
 export async function getCloudReport(
@@ -50,6 +88,7 @@ export async function getCloudReport(
     .from(TABLE)
     .select("id, report, messages")
     .eq("user_id", userId)
+    .eq("storage", "cloud")
     .eq("id", id)
     .maybeSingle<Omit<ReportRow, "summary">>()
   if (error) throw new Error(`Report lookup failed: ${error.message}`)
@@ -69,6 +108,7 @@ export async function listCloudReports(
     .from(TABLE)
     .select("id, summary")
     .eq("user_id", userId)
+    .eq("storage", "cloud")
     .order("generated_at", { ascending: false })
     .returns<Pick<ReportRow, "id" | "summary">[]>()
   if (error) throw new Error(`Report history failed: ${error.message}`)
@@ -85,11 +125,13 @@ export async function saveCloudMessages(
     .from(TABLE)
     .update({ messages: encryptJson(messages), updated_at: new Date() })
     .eq("user_id", userId)
+    .eq("storage", "cloud")
     .eq("id", id)
   if (error) throw new Error(`Couldn't save the chat: ${error.message}`)
 }
 
-export async function deleteCloudReports(userId: string) {
+/** Deletes the user's cloud reports and the location of every device report. */
+export async function deleteReports(userId: string) {
   const { error } = await createSupabaseAdminClient()
     .from(TABLE)
     .delete()
