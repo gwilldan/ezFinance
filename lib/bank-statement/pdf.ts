@@ -1,3 +1,7 @@
+// Must load before pdf-parse: it installs the DOMMatrix, Path2D and ImageData
+// globals pdf.js needs on Node (from @napi-rs/canvas) and preloads the pdf.js
+// worker. Importing it here also lets the build trace both into the function.
+import "pdf-parse/worker"
 import { PasswordException, PDFParse } from "pdf-parse"
 
 // pdf.js PasswordResponses: 1 = a password is needed, 2 = it was wrong.
