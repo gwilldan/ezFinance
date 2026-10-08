@@ -9,7 +9,11 @@ import { getSessionUser } from "@/lib/supabase/server"
 import type { Metadata } from "next"
 import { redirect } from "next/navigation"
 
-export const metadata: Metadata = { title: "Report · ezFinance" }
+export const metadata: Metadata = {
+  title: "Report",
+  // Private to the signed-in user.
+  robots: { index: false, follow: false },
+}
 
 /**
  * One saved statement, looked up where it was saved (not where the storage

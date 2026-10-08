@@ -6,7 +6,11 @@ import { getSessionUser } from "@/lib/supabase/server"
 import type { Metadata } from "next"
 import { redirect } from "next/navigation"
 
-export const metadata: Metadata = { title: "Settings · ezFinance" }
+export const metadata: Metadata = {
+  title: "Settings",
+  // Private to the signed-in user.
+  robots: { index: false, follow: false },
+}
 
 export default async function Page() {
   const user = await getSessionUser()
