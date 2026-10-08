@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
+import { cache } from "react"
 
 export type SupabaseAuthSession = {
   access_token?: string
@@ -148,13 +149,14 @@ export async function getUserByAccessToken(accessToken?: string | null) {
   return data.user
 }
 
-export async function getSessionUser() {
+/** The signed-in user. Looked up once per request, however many callers. */
+export const getSessionUser = cache(async () => {
   const supabase = await createSupabaseServerClient()
   const { data, error } = await supabase.auth.getUser()
 
   if (error) return null
   return data.user
-}
+})
 export type User = NonNullable<Awaited<ReturnType<typeof getSessionUser>>>
 
 export async function signOutUser() {

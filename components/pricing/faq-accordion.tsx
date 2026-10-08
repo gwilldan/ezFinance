@@ -6,9 +6,9 @@ import { useId, useState } from "react"
 
 type Faq = { question: string; answer: string }
 
-/** One question open at a time; answers slide open smoothly. */
+/** All questions start closed; one open at a time; answers slide open smoothly. */
 export function FaqAccordion({ items }: { items: Faq[] }) {
-  const [openIndex, setOpenIndex] = useState<number | null>(0)
+  const [openIndex, setOpenIndex] = useState<number | null>(null)
   const id = useId()
 
   return (

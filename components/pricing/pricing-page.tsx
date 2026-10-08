@@ -110,21 +110,6 @@ function PlanRow({ plan }: { plan: Plan }) {
         <p className="mt-3 text-sm leading-6 text-pretty text-muted-foreground">
           {plan.description}
         </p>
-        <ul className="mt-5 flex flex-wrap gap-2" aria-label="Included">
-          {plan.allowance.map((item) => (
-            <li
-              key={item}
-              className={cn(
-                "rounded-full px-3 py-1 text-xs font-medium tabular-nums",
-                highlighted
-                  ? "bg-cyan-accent/10 text-cyan-accent"
-                  : "bg-muted text-foreground"
-              )}
-            >
-              {item}
-            </li>
-          ))}
-        </ul>
         <Link
           href={plan.cta.href}
           className={cn(
@@ -144,7 +129,7 @@ function PlanRow({ plan }: { plan: Plan }) {
 
       <div className="flex flex-col gap-5 sm:border-l sm:border-border/70 sm:pl-8">
         <ul className="space-y-3 text-sm">
-          {plan.features.map((feature) => (
+          {[...plan.allowance, ...plan.features].map((feature) => (
             <li key={feature} className="flex gap-3">
               <Check
                 className="mt-0.5 size-4 shrink-0 text-cyan-accent"

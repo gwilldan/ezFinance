@@ -15,7 +15,7 @@ export type Plan = {
   period?: string
   annual?: string
   description: string
-  /** What the plan includes, shown as chips under the price. */
+  /** Usage the plan includes, listed first among its ticked features. */
   allowance: string[]
   /** Pay-as-you-go pricing past the allowance, when the plan has it. */
   overage?: string
@@ -136,6 +136,6 @@ export const FAQS = [
   {
     question: "Do you store my bank statements?",
     answer:
-      "No. Your PDF is read in memory to build the report and then discarded, and statement passwords are never saved. Your latest report stays in your browser until you close the tab or clear it in Settings.",
+      "No. Your PDF is read in memory to build the report and then discarded, and statement passwords are never saved. You choose where your reports are kept in Settings: on your device only, or encrypted in your ezFinance account.",
   },
 ]

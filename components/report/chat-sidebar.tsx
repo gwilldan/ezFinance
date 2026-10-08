@@ -7,6 +7,7 @@ import type { ReportStorage } from "@/lib/reports/types"
 import { ArrowUp, MessageCircle, Sparkles, X } from "lucide-react"
 import Link from "next/link"
 import { FormEvent, useEffect, useRef, useState } from "react"
+import { ChatUsage } from "./chat-usage"
 
 const SUGGESTIONS = [
   "What did I spend the most on?",
@@ -41,6 +42,8 @@ export function ChatSidebar({
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [limitReached, setLimitReached] = useState(false)
+  // Bumped after each question so the usage ring refetches.
+  const [usageVersion, setUsageVersion] = useState(0)
   const scrollRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -94,6 +97,7 @@ export function ChatSidebar({
       )
     } finally {
       setPending(false)
+      setUsageVersion((version) => version + 1)
     }
   }
 
@@ -130,14 +134,17 @@ export function ChatSidebar({
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => onOpenChange(false)}
-          aria-label="Close chat"
-          className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-600"
-        >
-          <X className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          <ChatUsage refreshKey={usageVersion} />
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            aria-label="Close chat"
+            className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       </header>
 
       <div
