@@ -27,7 +27,7 @@ export function FaqAccordion({ items }: { items: Faq[] }) {
                 aria-expanded={open}
                 aria-controls={panelId}
                 onClick={() => setOpenIndex(open ? null : index)}
-                className="flex w-full items-center justify-between gap-6 py-6 text-left text-lg font-medium focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-cyan-accent focus-visible:outline-none"
+                className="flex w-full items-center justify-between gap-6 py-6 text-left font-rethink text-lg leading-[1.4] font-semibold tracking-[-0.01em] focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-cyan-accent focus-visible:outline-none"
               >
                 {item.question}
                 <span
@@ -56,7 +56,7 @@ export function FaqAccordion({ items }: { items: Faq[] }) {
               inert={!open}
             >
               <div className="overflow-hidden">
-                <p className="max-w-2xl pb-6 leading-7 text-pretty text-muted-foreground">
+                <p className="max-w-2xl pb-6 leading-[1.75] text-pretty text-muted-foreground">
                   {item.answer}
                 </p>
               </div>

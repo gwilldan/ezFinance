@@ -13,7 +13,8 @@ export type Plan = {
   name: string
   price: string
   period?: string
-  annual?: string
+  /** Paying yearly instead: the yearly price and the whole-percent saving. */
+  yearly?: { price: string; saving: number }
   description: string
   /** Usage the plan includes, listed first among its ticked features. */
   allowance: string[]
@@ -82,7 +83,7 @@ export const PLANS: Plan[] = [
     name: "Pro",
     price: formatPrice(pro.monthly),
     period: "/month",
-    annual: `or ${formatPrice(pro.yearly)}/year, save ${yearlySaving(pro)}%`,
+    yearly: { price: formatPrice(pro.yearly), saving: yearlySaving(pro) },
     description: "For keeping an eye on your money every month.",
     allowance: allowanceCopy(pro.allowance, " a month"),
     features: [
@@ -99,7 +100,10 @@ export const PLANS: Plan[] = [
     name: "Business",
     price: formatPrice(business.monthly),
     period: "/month",
-    annual: `or ${formatPrice(business.yearly)}/year, save ${yearlySaving(business)}%`,
+    yearly: {
+      price: formatPrice(business.yearly),
+      saving: yearlySaving(business),
+    },
     description: "For accountants and consultants with many clients.",
     allowance: allowanceCopy(business.allowance, " a month"),
     overage: `Then ${formatPrice(perReport)} per extra report and ${formatPrice(perAgentCallBlock.price)} per ${perAgentCallBlock.calls} extra questions`,

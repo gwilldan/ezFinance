@@ -70,7 +70,7 @@ export function ReportNotFound() {
         </p>
         <Link
           href="/"
-          className="mt-7 inline-flex rounded-xl bg-slate-900 px-5 py-3 text-sm font-medium text-white"
+          className="mt-7 inline-flex rounded-xl bg-cyan-accent px-5 py-3 text-sm font-medium text-cyan-accent-foreground"
         >
           Analyze a statement
         </Link>
@@ -95,7 +95,7 @@ export function ReportSkeleton() {
           <div className="mt-4 h-4 w-64 rounded bg-slate-200" />
         </div>
         <div className="mt-8 grid gap-4 lg:grid-cols-[1.4fr_repeat(3,1fr)]">
-          <div className="h-40 rounded-3xl bg-slate-300/70" />
+          <div className="h-40 rounded-3xl bg-cyan-accent/20" />
           <div className="h-40 rounded-3xl bg-white ring-1 ring-slate-100" />
           <div className="h-40 rounded-3xl bg-white ring-1 ring-slate-100" />
           <div className="h-40 rounded-3xl bg-white ring-1 ring-slate-100" />
@@ -131,17 +131,17 @@ export function ReportView({
       <div className="mx-auto max-w-6xl">
         <Link
           href="/"
-          className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-900"
+          className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-cyan-accent"
         >
           <ChevronLeft className="h-4 w-4" /> Upload another statement
         </Link>
 
         <header className="mt-8 flex flex-col justify-between gap-5 border-b border-slate-200 pb-8 sm:flex-row sm:items-end">
           <div>
-            <p className="text-xs font-semibold tracking-[0.2em] text-emerald-600 uppercase">
+            <p className="text-xs font-semibold tracking-[0.2em] text-cyan-accent uppercase">
               Completed report
             </p>
-            <h1 className="mt-2 text-4xl font-semibold tracking-[-0.05em] text-[#3f5064] sm:text-5xl">
+            <h1 className="mt-2 text-4xl font-semibold tracking-[-0.05em] text-foreground sm:text-5xl">
               Your full spending report
             </h1>
             <p className="mt-3 text-sm text-slate-500">
@@ -149,20 +149,20 @@ export function ReportView({
               {report.pages === 1 ? "page" : "pages"}
             </p>
           </div>
-          <div className="rounded-full bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700">
+          <div className="rounded-full bg-cyan-accent-soft px-4 py-2 text-sm font-medium text-cyan-accent">
             Ready to review
           </div>
         </header>
 
         <section className="mt-8 grid gap-4 lg:grid-cols-[1.4fr_repeat(3,1fr)]">
-          <div className="rounded-3xl bg-[#3f5064] p-7 text-white shadow-sm">
-            <p className="text-sm text-slate-300">
+          <div className="rounded-3xl bg-cyan-accent p-7 text-cyan-accent-foreground shadow-sm shadow-cyan-accent/20">
+            <p className="text-sm text-white/75">
               Net saved in {report.statementPeriod}
             </p>
             <p className="mt-3 text-4xl font-semibold tracking-[-0.05em]">
               {formatMoney(snapshot.netSaved, currency)}
             </p>
-            <p className="mt-3 text-sm text-slate-300">
+            <p className="mt-3 text-sm text-white/75">
               {formatPercent(snapshot.savingsRate)} of income
             </p>
           </div>
@@ -203,7 +203,7 @@ export function ReportView({
                   key={recommendation.title}
                   className="rounded-2xl border border-slate-100 bg-slate-50 p-4"
                 >
-                  <p className="text-xl font-semibold text-emerald-600">
+                  <p className="text-xl font-semibold text-cyan-accent">
                     {formatMoney(recommendation.impact, currency)}
                     <span className="text-xs font-normal text-slate-400">
                       {" "}
@@ -277,7 +277,7 @@ export function ReportView({
               <div
                 className="grid h-32 w-32 shrink-0 place-items-center rounded-full"
                 style={{
-                  background: `conic-gradient(#34d399 ${report.healthScore.score * 3.6}deg, #e2e8f0 0deg)`,
+                  background: `conic-gradient(var(--cyan-accent) ${report.healthScore.score * 3.6}deg, #e2e8f0 0deg)`,
                 }}
               >
                 <div className="grid h-24 w-24 place-items-center rounded-full bg-white">
@@ -379,7 +379,7 @@ function MetricCard({
   return (
     <div className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
       <div
-        className={`flex h-8 w-8 items-center justify-center rounded-lg ${tone === "green" ? "bg-emerald-50 text-emerald-600" : tone === "red" ? "bg-red-50 text-red-500" : "bg-slate-100 text-slate-500"}`}
+        className={`flex h-8 w-8 items-center justify-center rounded-lg ${tone === "green" ? "bg-emerald-50 text-emerald-600" : tone === "red" ? "bg-red-50 text-red-500" : "bg-cyan-accent-soft text-cyan-accent"}`}
       >
         {icon}
       </div>
@@ -403,7 +403,7 @@ function SectionHeading({
 }) {
   return (
     <div className="flex items-start gap-3">
-      {icon ? <div className="mt-0.5 text-emerald-500">{icon}</div> : null}
+      {icon ? <div className="mt-0.5 text-cyan-accent">{icon}</div> : null}
       <div>
         <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-700">
           {title}

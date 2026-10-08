@@ -65,7 +65,7 @@ export function ChatUsage({ refreshKey }: { refreshKey: number }) {
       ? "text-red-500"
       : fraction >= 0.8
         ? "text-amber-500"
-        : "text-emerald-500"
+        : "text-cyan-accent"
   const open = hovered || pinned
 
   return (
@@ -81,7 +81,7 @@ export function ChatUsage({ refreshKey }: { refreshKey: number }) {
         aria-expanded={open}
         aria-controls={panelId}
         aria-label={`AI questions: ${percent}% used`}
-        className="relative grid h-8 w-8 place-items-center rounded-full focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:outline-none"
+        className="relative grid h-8 w-8 place-items-center rounded-full focus-visible:ring-2 focus-visible:ring-cyan-accent/40 focus-visible:outline-none"
       >
         <svg viewBox="0 0 32 32" className="h-8 w-8 -rotate-90" aria-hidden>
           <circle
@@ -151,7 +151,7 @@ export function ChatUsage({ refreshKey }: { refreshKey: number }) {
           </p>
           <Link
             href="/pricing"
-            className="mt-3 inline-block text-xs font-medium text-emerald-600 underline-offset-4 hover:underline"
+            className="mt-3 inline-block text-xs font-medium text-cyan-accent underline-offset-4 hover:underline"
           >
             {meter.remaining === 0 ? "Get more questions" : "See plans"}
           </Link>

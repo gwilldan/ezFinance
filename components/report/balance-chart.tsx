@@ -11,7 +11,8 @@ import { Line } from "react-chartjs-2"
 import { compactNumber, GRID_COLOR, TOOLTIP } from "./chart-setup"
 import { Segmented } from "./segmented"
 
-const LINE_COLOR = "#10b981"
+// The brand accent (--cyan-accent); canvas can't read CSS variables.
+const LINE_COLOR = "#2477c9"
 const PERIODS: { value: BalancePeriod; label: string }[] = [
   { value: "daily", label: "Daily" },
   { value: "weekly", label: "Weekly" },

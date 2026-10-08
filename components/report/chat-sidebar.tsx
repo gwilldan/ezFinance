@@ -4,9 +4,10 @@ import type { ChatMessage } from "@/lib/bank-statement/chat"
 import type { StatementReport } from "@/lib/bank-statement/schema"
 import { USAGE_LIMIT_CODE } from "@/lib/billing/types"
 import type { ReportStorage } from "@/lib/reports/types"
-import { ArrowUp, MessageCircle, Sparkles, X } from "lucide-react"
+import { ArrowUp, Bot, X } from "lucide-react"
 import Link from "next/link"
 import { FormEvent, useEffect, useRef, useState } from "react"
+import { ChatMarkdown } from "./chat-markdown"
 import { ChatUsage } from "./chat-usage"
 
 const SUGGESTIONS = [
@@ -111,9 +112,9 @@ export function ChatSidebar({
       <button
         type="button"
         onClick={() => onOpenChange(true)}
-        className="fixed right-6 bottom-6 z-40 inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-3 text-sm font-medium text-white shadow-lg hover:opacity-95"
+        className="fixed right-6 bottom-6 z-40 inline-flex items-center gap-2 rounded-full bg-cyan-accent px-5 py-3 text-sm font-medium text-cyan-accent-foreground shadow-lg shadow-cyan-accent/25 hover:bg-cyan-accent/90 focus-visible:ring-2 focus-visible:ring-cyan-accent focus-visible:ring-offset-2 focus-visible:outline-none"
       >
-        <MessageCircle className="h-4 w-4" /> Ask about your statement
+        <Bot className="h-4 w-4" /> Ask about your statement
       </button>
     )
   }
@@ -122,8 +123,8 @@ export function ChatSidebar({
     <aside className="fixed inset-y-0 right-0 z-40 flex w-full flex-col bg-white shadow-xl ring-1 ring-slate-100 sm:w-[420px]">
       <header className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
         <div className="flex items-center gap-3">
-          <div className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-50 text-emerald-600">
-            <Sparkles className="h-4 w-4" />
+          <div className="grid h-9 w-9 place-items-center rounded-xl bg-cyan-accent-soft text-cyan-accent">
+            <Bot className="h-4 w-4" />
           </div>
           <div>
             <p className="text-sm font-semibold text-slate-700">
@@ -162,7 +163,7 @@ export function ChatSidebar({
                   key={suggestion}
                   type="button"
                   onClick={() => void ask(suggestion)}
-                  className="block w-full rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-left text-sm text-slate-600 hover:border-emerald-200 hover:bg-emerald-50/50"
+                  className="block w-full rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-left text-sm text-slate-600 hover:border-cyan-accent/30 hover:bg-cyan-accent-soft"
                 >
                   {suggestion}
                 </button>
@@ -174,9 +175,13 @@ export function ChatSidebar({
         {messages.map((message, index) => (
           <div
             key={index}
-            className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-6 whitespace-pre-wrap ${message.role === "user" ? "ml-auto bg-slate-900 text-white" : "bg-slate-50 text-slate-700"}`}
+            className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-6 [overflow-wrap:anywhere] ${message.role === "user" ? "ml-auto bg-cyan-accent whitespace-pre-wrap text-cyan-accent-foreground" : "bg-slate-50 text-slate-700"}`}
           >
-            {message.content}
+            {message.role === "assistant" ? (
+              <ChatMarkdown>{message.content}</ChatMarkdown>
+            ) : (
+              message.content
+            )}
           </div>
         ))}
 
@@ -210,13 +215,13 @@ export function ChatSidebar({
           onChange={(event) => setInput(event.target.value)}
           placeholder="Ask about your spending…"
           aria-label="Your question"
-          className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-emerald-300 focus:bg-white"
+          className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-cyan-accent/50 focus:bg-white"
         />
         <button
           type="submit"
           disabled={pending || limitReached || !input.trim()}
           aria-label="Send"
-          className="grid h-11 w-11 place-items-center rounded-xl bg-slate-900 text-white disabled:opacity-40"
+          className="grid h-11 w-11 place-items-center rounded-xl bg-cyan-accent text-cyan-accent-foreground hover:bg-cyan-accent/90 disabled:opacity-40"
         >
           <ArrowUp className="h-4 w-4" />
         </button>

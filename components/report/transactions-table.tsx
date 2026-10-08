@@ -70,7 +70,7 @@ export function TransactionsTable({
             }}
             placeholder="Search merchant or description"
             aria-label="Search transactions"
-            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pr-3 pl-9 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-emerald-300 focus:bg-white"
+            className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pr-3 pl-9 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-cyan-accent/50 focus:bg-white"
           />
         </label>
         <Select
@@ -83,7 +83,7 @@ export function TransactionsTable({
         >
           <SelectTrigger
             aria-label="Filter by category"
-            className="h-11 w-full rounded-xl border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 focus-visible:border-emerald-300 focus-visible:ring-0 data-[size=default]:h-11 sm:w-56"
+            className="h-11 w-full rounded-xl border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 focus-visible:border-cyan-accent/50 focus-visible:ring-0 data-[size=default]:h-11 sm:w-56"
           >
             <SelectValue>
               {(value: Category | null) => (

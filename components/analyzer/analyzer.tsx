@@ -3,6 +3,7 @@
 import { UsageCard } from "@/components/billing/usage-card"
 import type { StatementReport } from "@/lib/bank-statement/schema"
 import { USAGE_LIMIT_CODE, type UsageSummary } from "@/lib/billing/types"
+import { spaceGrotesk } from "@/lib/fonts"
 import { saveLocalReport, useLocalReportSummaries } from "@/lib/report-store"
 import type { RecordedReport, ReportStorage } from "@/lib/reports/types"
 import { ArrowRight, FileUp } from "lucide-react"
@@ -172,7 +173,9 @@ export default function Analyzer({
       <div className="bg-dot-grid rounded-[2rem] bg-cyan-accent px-8 py-14 text-center text-cyan-accent-foreground shadow-sm sm:py-16">
         {uploadState === "idle" ? (
           <>
-            <h1 className="font-serif text-4xl leading-[1.1] tracking-[-0.01em] text-balance sm:text-5xl">
+            <h1
+              className={`${spaceGrotesk.className} text-4xl leading-[1.1] font-semibold tracking-[-0.03em] text-balance sm:text-5xl`}
+            >
               Analyze a statement
             </h1>
             <p className="mx-auto mt-3 max-w-md text-pretty text-white">

@@ -11,7 +11,9 @@ export function GET() {
   const plans = PLANS.map((plan) =>
     [
       `### ${plan.name}: ${plan.price}${plan.period ?? ""}`,
-      plan.annual ? `${plan.annual}.` : null,
+      plan.yearly
+        ? `Or ${plan.yearly.price}/year, saving ${plan.yearly.saving}%.`
+        : null,
       plan.description,
       ...[...plan.allowance, ...plan.features].map((item) => `- ${item}`),
       plan.overage ? `- ${plan.overage}` : null,
