@@ -31,6 +31,10 @@ Do not invent rows. Skip page headers, column titles, totals, account details, a
 
 type Extraction = { transactions: Transaction[]; currency: string }
 type ChunkExtraction = { transactions: Transaction[]; currency?: string }
+type ChunkReader = (
+  text: string,
+  temperature: number
+) => Promise<ChunkExtraction>
 
 export async function extractTransactions(
   pages: string[]
@@ -49,24 +53,30 @@ export async function extractTransactions(
   const chunks = chunkPages(pages).map((chunk) =>
     context ? `${context}\n\n${chunk}` : chunk
   )
-  const results = await mapWithConcurrency(
-    chunks,
-    CONCURRENCY,
-    (chunk, index) =>
-      timed(`[extract] chunk ${index + 1}/${chunks.length}`, () =>
-        extractChunkWithRetry(chunk)
-      )
+  // Every model call, re-reads included, so rate-limit pressure shows in logs.
+  let calls = 0
+  const read: ChunkReader = (text, temperature) => {
+    calls += 1
+    return extractChunk(text, temperature)
+  }
+  const results = await mapWithConcurrency(chunks, CONCURRENCY, (chunk) =>
+    extractChunkWithRetry(chunk, read)
   )
-  await rereadBrokenBoundaries(chunks, results)
+  await rereadBrokenBoundaries(chunks, results, read)
   const { transactions, stats } = reconcileBalances(
     results.flatMap((result) => result.transactions)
   )
   const currency = mostCommon(results.map((result) => result.currency))
 
-  console.info(
-    `[extract] ${transactions.length} ${currency ?? "unknown-currency"} transactions from ${pages.length} pages in ${chunks.length} chunks: ${elapsed(startedAt)}`,
-    stats
-  )
+  console.info("[extract]", {
+    pages: pages.length,
+    chunks: chunks.length,
+    calls,
+    transactions: transactions.length,
+    currency: currency ?? "unknown",
+    time: elapsed(startedAt),
+    ...stats,
+  })
   return { transactions, currency: currency ?? FALLBACK_CURRENCY }
 }
 
@@ -75,18 +85,19 @@ export async function extractTransactions(
  * mostly lack balances, and keeps the cleanest read. Reads vary, so a misread
  * row is usually right on another attempt; clean chunks cost one call.
  */
-async function extractChunkWithRetry(text: string): Promise<ChunkExtraction> {
+async function extractChunkWithRetry(
+  text: string,
+  read: ChunkReader
+): Promise<ChunkExtraction> {
   let best: { result: ChunkExtraction; score: number } | undefined
   let lastError: unknown
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
     // Retries vary the read a little; the first is as deterministic as it gets.
-    const result = await extractChunk(text, attempt ? 0.3 : 0).catch(
-      (error) => {
-        lastError = error
-        return undefined
-      }
-    )
+    const result = await read(text, attempt ? 0.3 : 0).catch((error) => {
+      lastError = error
+      return undefined
+    })
     if (!result) continue
 
     const score = readScore(result.transactions)
@@ -107,7 +118,8 @@ async function extractChunkWithRetry(text: string): Promise<ChunkExtraction> {
  */
 async function rereadBrokenBoundaries(
   chunks: string[],
-  results: ChunkExtraction[]
+  results: ChunkExtraction[],
+  read: ChunkReader
 ) {
   for (let round = 0; round < BOUNDARY_ROUNDS; round += 1) {
     const broken = results.flatMap((_, index) =>
@@ -116,9 +128,7 @@ async function rereadBrokenBoundaries(
     if (!broken.length) return
 
     await mapWithConcurrency(broken, CONCURRENCY, async (index) => {
-      const reread = await extractChunk(chunks[index], 0.3).catch(
-        () => undefined
-      )
+      const reread = await read(chunks[index], 0.3).catch(() => undefined)
       if (!reread) return
       const candidate = results.with(index, reread)
       if (boundaryBreaks(candidate, index) < boundaryBreaks(results, index)) {
@@ -170,15 +180,6 @@ function findColumnHeader(pages: string[]): string | undefined {
       (line) =>
         line.length < 200 && /\bdate/i.test(line) && /\bbalance\b/i.test(line)
     )
-}
-
-async function timed<T>(label: string, fn: () => Promise<T>): Promise<T> {
-  const startedAt = performance.now()
-  try {
-    return await fn()
-  } finally {
-    console.info(`${label}: ${elapsed(startedAt)}`)
-  }
 }
 
 export function elapsed(startedAt: number): string {
