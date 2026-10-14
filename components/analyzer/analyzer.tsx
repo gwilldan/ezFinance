@@ -181,9 +181,7 @@ export default function Analyzer({
                   : "uploading"
             }
             progress={
-              uploadState === "uploading" && progress?.total
-                ? progress.done / progress.total
-                : undefined
+              uploadState === "uploading" ? (progress ?? undefined) : undefined
             }
             heading={
               uploadState === "uploading"

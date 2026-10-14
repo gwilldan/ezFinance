@@ -118,6 +118,36 @@ button {
   animation: upload-progress 1.6s ease-in-out infinite;
 }
 
+@keyframes upload-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-0.12em);
+  }
+}
+
+.animate-upload-dot {
+  animation: upload-dot 1.4s ease-in-out infinite both;
+}
+
+@keyframes upload-shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.animate-upload-shimmer {
+  animation: upload-shimmer 1.8s ease-in-out infinite;
+}
+
 .animate-upload-copy {
   display: inline-block;
   animation: upload-copy 400ms ease-out both;
@@ -125,7 +155,9 @@ button {
 
 @media (prefers-reduced-motion: reduce) {
   .animate-upload-progress,
-  .animate-upload-copy {
+  .animate-upload-copy,
+  .animate-upload-dot,
+  .animate-upload-shimmer {
     animation: none;
   }
 }

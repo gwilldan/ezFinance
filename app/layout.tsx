@@ -1,3 +1,4 @@
+import { NavigationProgress } from "@/components/nav/navigation-progress"
 import { JsonLd, siteJsonLd } from "@/components/seo/json-ld"
 import {
   BRAND_COLOR,
@@ -78,6 +79,7 @@ export default function RootLayout({
     >
       <body>
         <JsonLd data={siteJsonLd} />
+        <NavigationProgress />
         {children}
       </body>
     </html>

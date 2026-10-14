@@ -273,37 +273,38 @@ export function ReportView({
               title="Your financial health, scored"
               subtitle="A transparent score based on savings and recurring load."
             />
-            <div className="mt-6 flex items-center gap-6">
+            <div className="mt-8 flex flex-col items-center text-center">
               <div
-                className="grid h-32 w-32 shrink-0 place-items-center rounded-full"
+                className="grid h-40 w-40 place-items-center rounded-full shadow-[0_10px_30px_-12px_var(--cyan-accent)]"
                 style={{
                   background: `conic-gradient(var(--cyan-accent) ${report.healthScore.score * 3.6}deg, #e2e8f0 0deg)`,
                 }}
+                role="img"
+                aria-label={`Health score ${report.healthScore.score} out of 100, ${report.healthScore.label}`}
               >
-                <div className="grid h-24 w-24 place-items-center rounded-full bg-white">
-                  <span className="text-3xl font-semibold text-slate-700">
+                <div className="flex h-31 w-31 flex-col items-center justify-center rounded-full bg-white">
+                  <span className="text-4xl leading-none font-semibold tracking-[-0.03em] text-slate-800 tabular-nums">
                     {report.healthScore.score}
                   </span>
-                  <span className="-mt-2 text-xs text-slate-400">/ 100</span>
+                  <span className="mt-1 text-xs text-slate-400">/ 100</span>
                 </div>
               </div>
-              <div>
-                <p className="text-2xl font-semibold text-slate-700">
-                  {report.healthScore.label}
-                </p>
-                <p className="mt-2 text-sm text-slate-500">
-                  Savings rate:{" "}
-                  <strong className="text-slate-700">
-                    {formatPercent(snapshot.savingsRate)}
-                  </strong>
-                </p>
-                <p className="mt-1 text-sm text-slate-500">
-                  Expense count:{" "}
-                  <strong className="text-slate-700">
-                    {snapshot.expenseCount}
-                  </strong>
-                </p>
-              </div>
+              <p className="mt-5 inline-flex items-center rounded-full bg-cyan-accent-soft px-3.5 py-1 text-sm font-medium text-cyan-accent">
+                {report.healthScore.label}
+              </p>
+              <p className="mt-3 text-sm text-slate-500">
+                Savings rate{" "}
+                <strong className="text-slate-700">
+                  {formatPercent(snapshot.savingsRate)}
+                </strong>
+                <span className="mx-2 text-slate-300" aria-hidden>
+                  ·
+                </span>
+                <strong className="text-slate-700">
+                  {snapshot.expenseCount}
+                </strong>{" "}
+                expenses
+              </p>
             </div>
             <div className="mt-7 grid grid-cols-2 gap-3 text-sm">
               <HealthLine
@@ -344,15 +345,13 @@ export function ReportView({
           </div>
         ) : null}
 
-         <Link
+        <Link
           href="/"
-          className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-cyan-accent mt-10"
+          className="mt-10 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-cyan-accent"
         >
           <ChevronLeft className="h-4 w-4" /> Upload another statement
         </Link>
       </div>
-
-      
 
       <ChatSidebar
         key={saved.id}

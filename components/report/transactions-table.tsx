@@ -213,7 +213,7 @@ function TransactionRow({
         </p>
         {transaction.merchant &&
         transaction.merchant !== transaction.description ? (
-          <p className="mt-0.5 max-w-sm truncate text-xs text-slate-400">
+          <p className="mt-0.5 max-w-md text-xs/relaxed wrap-anywhere text-slate-400">
             {transaction.description}
           </p>
         ) : null}
