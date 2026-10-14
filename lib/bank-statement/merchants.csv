@@ -1,0 +1,223 @@
+patterns,name,category,kind,direction,description
+stamp duty|electronic money transfer levy|emtl,Stamp Duty,Bank Charges,fee,debit,₦50 levy on transfers of ₦10000 and above
+vat|value added tax,VAT,Bank Charges,fee,debit,VAT on bank fees
+sms alert|sms charge|sms charges|sms notification|alert charges,SMS Alerts,Bank Charges,fee,debit,
+overdraft interest|smart overdraft|loan charges|interest on overdraft,Overdraft Interest,Bank Charges,fee,debit,Interest and charges on overdrafts and loans
+card maintenance|card issuance|card renewal|card replacement|card fee|debit card fee,Card Fee,Bank Charges,fee,debit,
+account maintenance|maintenance fee|maintenance charge|cot charge|commission on turnover,Account Maintenance,Bank Charges,fee,debit,
+transfer fee|transfer charge|transfer charges|nip charge|nip fee|transaction fee|transaction charge,Transfer Fee,Bank Charges,fee,debit,
+atm withdrawal fee|atm charge|atm fee|withdrawal fee,ATM Fee,Bank Charges,fee,debit,
+pos charge|pos fee,POS Fee,Bank Charges,fee,debit,
+token fee|token charge|hardware token,Token Fee,Bank Charges,fee,debit,
+ikeja electric|ikedc|iedc,Ikeja Electric,Utilities,biller,debit,Electricity in Lagos
+eko electric|eko electricity|ekedc,Eko Electricity,Utilities,biller,debit,Electricity in Lagos
+abuja electric|aedc,Abuja Electricity,Utilities,biller,debit,
+phed|phedc|port harcourt electric,PHED,Utilities,biller,debit,Port Harcourt Electricity (also Akwa Ibom and Cross River)
+ibedc|ibadan electric,Ibadan Electricity,Utilities,biller,debit,
+eedc|enugu electric,Enugu Electricity,Utilities,biller,debit,
+bedc|benin electric,Benin Electricity,Utilities,biller,debit,
+kedco|kano electric,Kano Electricity,Utilities,biller,debit,
+kaedco|kaduna electric,Kaduna Electric,Utilities,biller,debit,
+jos electric|jedplc,Jos Electricity,Utilities,biller,debit,
+yedc|yola electric,Yola Electricity,Utilities,biller,debit,
+aba power,Aba Power,Utilities,biller,debit,
+buypower|buy power,BuyPower,Utilities,biller,debit,Prepaid electricity tokens
+irecharge,iRecharge,Utilities,biller,debit,Electricity and airtime vending
+electricity|prepaid meter|electricity token|power token,Electricity,Utilities,keyword,debit,
+mtn|mtnn|mtn nigeria,MTN,Utilities,biller,debit,Airtime and data
+airtel,Airtel,Utilities,biller,debit,Airtime and data
+glo|globacom,Glo,Utilities,biller,debit,Airtime and data
+9mobile|etisalat,9mobile,Utilities,biller,debit,Airtime and data
+airtime|airtime purchase|airtime recharge|recharge card,Airtime,Utilities,biller,debit,
+data plan|data bundle|data purchase|data subscription|mb plan|gb plan|gb weekly plan|gb monthly plan,Mobile Data,Utilities,biller,debit,
+spectranet,Spectranet,Utilities,biller,debit,Internet
+smile communications|smile 4g|smile lte,Smile,Utilities,biller,debit,Internet
+starlink,Starlink,Utilities,biller,debit,Satellite internet
+ipnx,ipNX,Utilities,biller,debit,Internet
+fiberone,FiberOne,Utilities,biller,debit,Internet
+tizeti|wifi com ng,Tizeti,Utilities,biller,debit,Internet
+lawma,LAWMA,Utilities,biller,debit,Lagos waste collection
+water board|water corporation|water bill,Water,Utilities,keyword,debit,
+dstv|multichoice,DStv,Subscriptions,biller,debit,Satellite TV
+gotv,GOtv,Subscriptions,biller,debit,TV
+startimes|star times,StarTimes,Subscriptions,biller,debit,TV
+showmax,Showmax,Subscriptions,merchant,debit,Streaming
+netflix,Netflix,Subscriptions,merchant,debit,Streaming
+spotify,Spotify,Subscriptions,merchant,debit,Music streaming
+apple com bill|apple com|itunes|icloud|apple music,Apple,Subscriptions,merchant,debit,App Store and iCloud
+google play|google storage|google one|google workspace|google cloud,Google,Subscriptions,merchant,debit,
+youtube premium|youtube music,YouTube Premium,Subscriptions,merchant,debit,
+amazon prime|prime video,Amazon Prime,Subscriptions,merchant,debit,
+disney plus|disneyplus,Disney+,Subscriptions,merchant,debit,
+audiomack,Audiomack,Subscriptions,merchant,debit,
+boomplay,Boomplay,Subscriptions,merchant,debit,
+deezer,Deezer,Subscriptions,merchant,debit,
+openai|chatgpt,ChatGPT,Subscriptions,merchant,debit,
+anthropic|claude ai,Claude,Subscriptions,merchant,debit,
+canva,Canva,Subscriptions,merchant,debit,
+microsoft 365|office 365|microsoft,Microsoft,Subscriptions,merchant,debit,
+adobe,Adobe,Subscriptions,merchant,debit,
+linkedin,LinkedIn,Subscriptions,merchant,debit,
+duolingo,Duolingo,Subscriptions,merchant,debit,
+zoom us|zoom video,Zoom,Subscriptions,merchant,debit,
+bolt,Bolt,Transport,merchant,debit,Ride hailing
+bolt food,Bolt Food,Dining Out,merchant,debit,Food delivery
+uber,Uber,Transport,merchant,debit,Ride hailing
+indrive|indriver,inDrive,Transport,merchant,debit,Ride hailing
+lagride,LagRide,Transport,merchant,debit,Ride hailing
+cowry card,Cowry,Transport,merchant,debit,Lagos bus and ferry card
+gigm|gig motors|god is good motors,GIGM,Transport,merchant,debit,Intercity buses
+abc transport,ABC Transport,Transport,merchant,debit,Intercity buses
+peace mass transit,Peace Mass Transit,Transport,merchant,debit,Intercity buses
+chisco,Chisco,Transport,merchant,debit,Intercity buses
+lekki toll|lcc toll|toll gate,Toll,Transport,merchant,debit,
+frsc,FRSC,Transport,merchant,debit,Licences and plate numbers
+transport fare|transport|keke|okada|cab fare|taxi,Transport,Transport,keyword,debit,
+totalenergies|total energies,TotalEnergies,Gas,merchant,debit,Filling stations
+nnpc,NNPC,Gas,merchant,debit,Filling stations
+mrs oil,MRS,Gas,merchant,debit,Filling stations
+conoil,Conoil,Gas,merchant,debit,Filling stations
+ardova|forte oil,Ardova,Gas,merchant,debit,Filling stations
+oando,Oando,Gas,merchant,debit,Filling stations
+filling station|petrol station|fuel station|petrol|diesel|fuel,Fuel,Gas,keyword,debit,
+air peace|airpeace,Air Peace,Travel,merchant,debit,Airline
+ibom air,Ibom Air,Travel,merchant,debit,Airline
+arik air,Arik Air,Travel,merchant,debit,Airline
+united nigeria airlines,United Nigeria,Travel,merchant,debit,Airline
+overland airways,Overland Airways,Travel,merchant,debit,Airline
+green africa,Green Africa,Travel,merchant,debit,Airline
+valuejet,ValueJet,Travel,merchant,debit,Airline
+wakanow,Wakanow,Travel,merchant,debit,Travel agency
+travelstart,Travelstart,Travel,merchant,debit,Travel agency
+booking com,Booking.com,Travel,merchant,debit,
+airbnb,Airbnb,Travel,merchant,debit,
+hotels ng,Hotels.ng,Travel,merchant,debit,
+chowdeck,Chowdeck,Dining Out,merchant,debit,Food delivery
+glovo,Glovo,Dining Out,merchant,debit,Food delivery
+heyfood,Heyfood,Dining Out,merchant,debit,Food delivery
+chicken republic,Chicken Republic,Dining Out,merchant,debit,
+dominos|domino s pizza|dominos pizza,Domino's,Dining Out,merchant,debit,
+kfc,KFC,Dining Out,merchant,debit,
+mr biggs,Mr Biggs,Dining Out,merchant,debit,
+kilimanjaro,Kilimanjaro,Dining Out,merchant,debit,
+sweet sensation,Sweet Sensation,Dining Out,merchant,debit,
+tantalizers,Tantalizers,Dining Out,merchant,debit,
+cold stone|coldstone,Cold Stone,Dining Out,merchant,debit,
+pizza hut,Pizza Hut,Dining Out,merchant,debit,
+debonairs,Debonairs,Dining Out,merchant,debit,
+burger king,Burger King,Dining Out,merchant,debit,
+bukka hut,Bukka Hut,Dining Out,merchant,debit,
+mama cass,Mama Cass,Dining Out,merchant,debit,
+krispy kreme,Krispy Kreme,Dining Out,merchant,debit,
+starbucks,Starbucks,Dining Out,merchant,debit,
+crunchies,Crunchies,Dining Out,merchant,debit,Fast food in Uyo and Calabar
+restaurant|eatery|fast food|lounge|suya|bukka|cafe|grill|amala|shawarma|bakery|food,Food,Dining Out,keyword,debit,
+shoprite,Shoprite,Groceries,merchant,debit,
+spar,Spar,Groceries,merchant,debit,
+justrite,Justrite,Groceries,merchant,debit,
+ebeano,Ebeano,Groceries,merchant,debit,
+hubmart,Hubmart,Groceries,merchant,debit,
+market square,Market Square,Groceries,merchant,debit,
+addide,Addide,Groceries,merchant,debit,
+foodco,FoodCo,Groceries,merchant,debit,
+park n shop|parknshop,Park 'n' Shop,Groceries,merchant,debit,
+next cash and carry,Next Cash and Carry,Groceries,merchant,debit,
+supermarket|mini mart|minimart|provision store|provisions,Supermarket,Groceries,keyword,debit,
+jumia,Jumia,Shopping,merchant,debit,
+konga,Konga,Shopping,merchant,debit,
+slot ng|slot systems,Slot,Shopping,merchant,debit,
+jiji,Jiji,Shopping,merchant,debit,
+aliexpress,AliExpress,Shopping,merchant,debit,
+temu,Temu,Shopping,merchant,debit,
+shein,Shein,Shopping,merchant,debit,
+amazon,Amazon,Shopping,merchant,debit,
+salon|barber|barbing|cosmetics|nail studio|beauty salon|beauty lounge|unisex salon|hair salon|spa,Personal Care,Personal Care,keyword,debit,
+healthplus|health plus,HealthPlus,Healthcare,merchant,debit,Pharmacy chain
+medplus,MedPlus,Healthcare,merchant,debit,Pharmacy chain
+pharmacy|pharm|pharmaceutical|chemist|hospital|clinic|medical|diagnostics|laboratory,Healthcare,Healthcare,keyword,debit,
+reliance hmo|reliancehmo,Reliance Health,Insurance,merchant,debit,Health insurance
+hygeia,Hygeia HMO,Insurance,merchant,debit,Health insurance
+axa mansard,AXA Mansard,Insurance,merchant,debit,
+leadway,Leadway,Insurance,merchant,debit,
+aiico,AIICO,Insurance,merchant,debit,
+insurance|hmo,Insurance,Insurance,keyword,debit,
+sportybet,SportyBet,Entertainment,merchant,debit,Betting
+bet9ja,Bet9ja,Entertainment,merchant,debit,Betting
+betking,BetKing,Entertainment,merchant,debit,Betting
+1xbet,1xBet,Entertainment,merchant,debit,Betting
+msport,MSport,Entertainment,merchant,debit,Betting
+betway,Betway,Entertainment,merchant,debit,Betting
+nairabet,NairaBet,Entertainment,merchant,debit,Betting
+merrybet,MerryBet,Entertainment,merchant,debit,Betting
+bangbet,BangBet,Entertainment,merchant,debit,Betting
+paripesa,PariPesa,Entertainment,merchant,debit,Betting
+filmhouse,Filmhouse,Entertainment,merchant,debit,Cinema
+genesis cinema|genesis cinemas,Genesis Cinemas,Entertainment,merchant,debit,Cinema
+silverbird,Silverbird,Entertainment,merchant,debit,Cinema
+ebonylife,EbonyLife,Entertainment,merchant,debit,
+playstation,PlayStation,Entertainment,merchant,debit,
+xbox,Xbox,Entertainment,merchant,debit,
+steampowered|steam games,Steam,Entertainment,merchant,debit,
+call of duty|codm|google call of duty,Call of Duty,Entertainment,merchant,debit,
+cinema,Entertainment,Entertainment,keyword,debit,
+piggyvest|piggybank ng,PiggyVest,Savings,merchant,,Savings and investments
+cowrywise,Cowrywise,Savings,merchant,,Savings and investments
+risevest|rise vest,Risevest,Savings,merchant,,Investments
+investbamboo,Bamboo,Savings,merchant,,Investments
+trove,Trove,Savings,merchant,,Investments
+fixed deposit|target savings,Savings,Savings,keyword,,
+house rent|rent,Rent,Housing,keyword,debit,
+salary|payroll,Salary,Income,keyword,credit,
+opay|paycom|opay digital services,Opay,,bank,,
+moniepoint|teamapt,Moniepoint,,bank,,
+palmpay,Palmpay,,bank,,
+kuda|kudabank,Kuda,,bank,,
+first bank|firstbank|fbn,First Bank,,bank,,
+gtbank|gtb|guaranty trust,GTBank,,bank,,
+access bank|diamond bank,Access Bank,,bank,,
+zenith|zenith bank,Zenith Bank,,bank,,
+uba|united bank for africa,UBA,,bank,,
+fidelity|fidelity bank,Fidelity Bank,,bank,,
+fcmb|first city monument,FCMB,,bank,,
+union bank,Union Bank,,bank,,
+stanbic|stanbic ibtc,Stanbic IBTC,,bank,,
+sterling|sterling bank,Sterling Bank,,bank,,
+wema|alat,Wema Bank,,bank,,
+polaris|polaris bank,Polaris Bank,,bank,,
+keystone,Keystone Bank,,bank,,
+ecobank,Ecobank,,bank,,
+providus,Providus Bank,,bank,,
+unity bank,Unity Bank,,bank,,
+jaiz,Jaiz Bank,,bank,,
+globus,Globus Bank,,bank,,
+titan trust,Titan Trust Bank,,bank,,
+premiumtrust|premium trust,PremiumTrust Bank,,bank,,
+parallex,Parallex Bank,,bank,,
+optimus bank,Optimus Bank,,bank,,
+signature bank,Signature Bank,,bank,,
+suntrust,SunTrust Bank,,bank,,
+taj bank|tajbank,TAJBank,,bank,,
+lotus bank,Lotus Bank,,bank,,
+standard chartered,Standard Chartered,,bank,,
+citibank,Citibank,,bank,,
+fairmoney,FairMoney,,bank,,
+carbon,Carbon,,bank,,
+vfd|vbank,VFD,,bank,,
+nomba|nombank,Nomba,,bank,,
+paga,Paga,,bank,,
+rubies,Rubies,,bank,,
+sparkle,Sparkle,,bank,,
+eyowo,Eyowo,,bank,,
+9psb|9 payment service,9PSB,,bank,,
+momo psb,MoMo PSB,,bank,,
+hope psb,HopePSB,,bank,,
+smartcash,SmartCash,,bank,,
+chipper,Chipper Cash,,bank,,
+paystack,Paystack,,bank,,
+flutterwave,Flutterwave,,bank,,
+lapo,LAPO,,bank,,
+accion,Accion,,bank,,
+baobab,Baobab,,bank,,
+renmoney,Renmoney,,bank,,
+bankly,Bankly,,bank,,
+dot mfb,Dot MFB,,bank,,

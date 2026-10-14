@@ -12,6 +12,8 @@ export const CATEGORIES = [
   "Healthcare",
   "Entertainment",
   "Travel",
+  "Bank Charges",
+  "Transfers",
   "Savings",
   "Income",
   "Other",
@@ -27,6 +29,10 @@ export type Transaction = {
   type: "debit" | "credit"
   balance?: number
   category: Category
+  /** The counterparty's account number, when the narration shows one. */
+  account?: string
+  /** The counterparty's bank or wallet, e.g. "Opay" or "First Bank". */
+  bank?: string
 }
 
 export type Snapshot = {

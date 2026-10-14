@@ -21,7 +21,7 @@ export function filterTransactions(
   return transactions.filter(
     (transaction) =>
       (!search ||
-        `${transaction.merchant} ${transaction.description}`
+        `${transaction.merchant} ${transaction.description} ${transaction.bank ?? ""} ${transaction.account ?? ""}`
           .toLowerCase()
           .includes(search)) &&
       (!filters.category || transaction.category === filters.category) &&

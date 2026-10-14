@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "eval": "tsx --env-file=.env script/eval.ts",
     "grant": "tsx --env-file=.env script/grant.ts",
+    "merchants": "tsx script/merchants.ts",
     "loadtest": "tsx --env-file=.env script/loadtest.ts"
   },
   "dependencies": {

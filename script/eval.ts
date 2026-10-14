@@ -5,22 +5,45 @@
  *   npm run eval                # every statement
  *   npm run eval -- kuda gtb    # only files whose name contains "kuda" or "gtb"
  *   npm run eval -- --dump      # also write <name>.out.json with the rows
+ *   npm run eval -- --label     # also write <name>.labels.csv to fill in
  *
  * Expected totals sit next to each PDF as <name>.expected.json. Every field is
  * optional; copy them from the statement's summary section. "password" unlocks
  * a protected PDF (the file is git-ignored with the statements):
  *   { "currency": "NGN", "openingBalance": 0, "closingBalance": 0,
  *     "moneyIn": 0, "moneyOut": 0, "transactionCount": 0, "password": "" }
+ *
+ * Category accuracy is checked against <name>.labels.csv: a sample of rows
+ * with the right category filled in by hand. --label writes one (never over an
+ * existing file) with the model's guess in "model" and "category" left empty.
+ * Rows are matched by date, direction and amount; rows left empty are skipped.
  */
 import { readdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { statementOrder } from "@/lib/bank-statement/analyze"
 import { elapsed, extractTransactions } from "@/lib/bank-statement/extract"
 import { PdfPasswordError, readPdfPages } from "@/lib/bank-statement/pdf"
-import type { Transaction } from "@/lib/bank-statement/schema"
+import {
+  CATEGORIES,
+  type Category,
+  type Transaction,
+} from "@/lib/bank-statement/schema"
+import { parseCsv, toCsvRow } from "@/lib/csv"
 
 const DIR = path.resolve("script/statements")
 const MAX_LISTED = 5
+const LABEL_SAMPLE = 150
+const LABEL_COLUMNS = [
+  "date",
+  "type",
+  "amount",
+  "merchant",
+  "description",
+  "model",
+  "category",
+] as const
+// Share of labeled rows that must get the labeled category to pass.
+const CATEGORY_TARGET = 0.9
 
 type Expected = {
   password?: string
@@ -30,6 +53,9 @@ type Expected = {
   moneyIn?: number
   moneyOut?: number
   transactionCount?: number
+}
+type Label = Pick<Transaction, "date" | "type" | "amount" | "merchant"> & {
+  category: Category
 }
 type Check = { name: string; pass: boolean; detail: string }
 type Result = {
@@ -42,6 +68,7 @@ type Result = {
 
 const args = process.argv.slice(2)
 const dump = args.includes("--dump")
+const label = args.includes("--label")
 const filters = args.filter((arg) => !arg.startsWith("--"))
 
 const files = (await readdir(DIR))
@@ -97,9 +124,12 @@ async function evaluate(file: string): Promise<Result> {
     }
 
     const rows = statementOrder(transactions).oldestFirst
+    if (label) await writeLabelTemplate(base, rows)
+    const labels = await readLabels(base)
     const checks = [
       ...internalChecks(rows, expected.openingBalance),
       ...expectedChecks(rows, currency, expected),
+      ...(labels ? [categoryCheck(rows, labels)] : []),
     ]
     const note = Object.keys(expected).some((key) => key !== "password")
       ? undefined
@@ -220,6 +250,134 @@ function expectedChecks(
     })
   }
   return checks
+}
+
+/**
+ * Each labeled row is paired with an extracted row of the same date, direction
+ * and amount, preferring one with the labeled category, so repeated rows (a
+ * day of ₦50 stamp duties) pair up however the model ordered them.
+ */
+function categoryCheck(rows: Transaction[], labels: Label[]): Check {
+  const pool = new Map<string, Transaction[]>()
+  for (const row of rows) {
+    pool.set(rowKey(row), [...(pool.get(rowKey(row)) ?? []), row])
+  }
+
+  let correct = 0
+  const wrong: Label[] = []
+  for (const item of labels) {
+    const candidates = pool.get(rowKey(item)) ?? []
+    const index = candidates.findIndex((row) => row.category === item.category)
+    if (index < 0) wrong.push(item)
+    else {
+      candidates.splice(index, 1)
+      correct += 1
+    }
+  }
+
+  let notFound = 0
+  const mistakes = new Map<string, number>()
+  for (const item of wrong) {
+    const row = pool.get(rowKey(item))?.shift()
+    if (!row) {
+      notFound += 1
+      continue
+    }
+    const mistake = `${item.category} read as ${row.category}`
+    mistakes.set(mistake, (mistakes.get(mistake) ?? 0) + 1)
+  }
+
+  const scored = labels.length - notFound
+  const accuracy = scored ? correct / scored : 0
+  const summary = [
+    `${(accuracy * 100).toFixed(1)}% of ${scored} labeled rows (target ${CATEGORY_TARGET * 100}%)`,
+    notFound ? `${notFound} labeled rows weren't extracted` : "",
+  ]
+    .filter(Boolean)
+    .join(", ")
+  const listed = [...mistakes]
+    .sort((a, b) => b[1] - a[1])
+    .map(([mistake, count]) => `${count}× ${mistake}`)
+  return {
+    name: "categories",
+    pass: scored > 0 && accuracy >= CATEGORY_TARGET,
+    detail: listed.length
+      ? `${summary}\n      ${list(listed, "\n      ")}`
+      : summary,
+  }
+}
+
+/** An evenly spaced sample of rows to label, unless the file already exists. */
+async function writeLabelTemplate(base: string, rows: Transaction[]) {
+  const file = path.join(DIR, `${base}.labels.csv`)
+  const exists = await readFile(file).then(
+    () => true,
+    () => false
+  )
+  if (exists) {
+    console.log(`  · kept the existing ${base}.labels.csv`)
+    return
+  }
+
+  const step = Math.max(1, rows.length / LABEL_SAMPLE)
+  const sample = Array.from(
+    { length: Math.min(LABEL_SAMPLE, rows.length) },
+    (_, index) => rows[Math.floor(index * step)]
+  )
+  const lines = sample.map((row) =>
+    toCsvRow([
+      row.date,
+      row.type,
+      row.amount,
+      row.merchant,
+      row.description,
+      row.category,
+      "",
+    ])
+  )
+  await writeFile(
+    file,
+    [toCsvRow([...LABEL_COLUMNS]), ...lines].join("\n") + "\n"
+  )
+  console.log(
+    `  · wrote ${base}.labels.csv: fill in "category" (one of ${CATEGORIES.join(", ")})`
+  )
+}
+
+async function readLabels(base: string): Promise<Label[] | undefined> {
+  const file = `${base}.labels.csv`
+  const text = await readFile(path.join(DIR, file), "utf8").catch(
+    () => undefined
+  )
+  if (text === undefined) return undefined
+
+  const [header = [], ...lines] = parseCsv(text)
+  const labels = lines.flatMap((cells): Label[] => {
+    const cell = (column: (typeof LABEL_COLUMNS)[number]) =>
+      (cells[header.indexOf(column)] ?? "").trim()
+    const category = CATEGORIES.find(
+      (item) => item.toLowerCase() === cell("category").toLowerCase()
+    )
+    if (!category) {
+      if (cell("category"))
+        console.warn(`  ! unknown category "${cell("category")}" in ${file}`)
+      return []
+    }
+    return [
+      {
+        date: cell("date"),
+        type: cell("type") === "credit" ? "credit" : "debit",
+        amount: Number(cell("amount")),
+        merchant: cell("merchant"),
+        category,
+      },
+    ]
+  })
+  return labels.length ? labels : undefined
+}
+
+function rowKey(row: Pick<Transaction, "date" | "type" | "amount">) {
+  return `${row.date.slice(0, 10)}|${row.type}|${row.amount.toFixed(2)}`
 }
 
 async function readExpected(base: string): Promise<Expected> {

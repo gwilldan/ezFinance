@@ -1,4 +1,5 @@
 import { chatCompletion } from "@/lib/llm"
+import { applyMerchantCatalog } from "./merchants"
 import { chainBreaks, reconcileBalances } from "./reconcile"
 import { CATEGORIES, type Category, type Transaction } from "./schema"
 
@@ -16,18 +17,20 @@ const FALLBACK_CURRENCY = "NGN"
 const SUPPORTED_CURRENCIES = new Set(Intl.supportedValuesOf("currency"))
 
 const SYSTEM_PROMPT = `You extract bank statement transactions. Reply with JSON only, in this shape:
-{"currency":"NGN","rows":[[date,description,merchant,amount,type,balance,category]]}
+{"currency":"NGN","rows":[[date,description,merchant,amount,type,balance,category,account,bank]]}
 - currency: ISO 4217 code of the account currency, from symbols, codes or the bank's country; null if unclear
 - date: "YYYY-MM-DD"
 - description: the transaction narration, trimmed to 80 characters
-- merchant: short clean counterparty name, e.g. "Uber", "MTN", "John Doe"
+- merchant: short clean name of the person or business on the other side, e.g. "Uber", "MTN", "John Doe"; never the bank or payment app the money went through (Opay, Moniepoint, Palmpay) unless it is the counterparty itself
 - amount: positive number
 - type: "D" for money out, "C" for money in
 - balance: the balance after the transaction, usually the last amount in the row. Always fill it in when the row shows one; null only if the row truly has none. Copy it exactly as printed; never calculate it. An overdrawn balance is negative: keep the sign when it's shown as "-1,234.00", "(1,234.00)" or "1,234.00 DR", and add none that isn't printed
 - the amount and the balance are always two different numbers in the row; never copy the balance into the amount, even when the balance is negative
-- category: one of ${CATEGORIES.join(", ")}
+- category: one of ${CATEGORIES.join(", ")}. Money in is Income, including money from people, unless it reverses or refunds a payment (then use that payment's category). Transfers: money out to a person or another account when nothing shows what it paid for. Bank Charges: fees, stamp duty, VAT on fees, SMS alerts, levies and overdraft interest
+- account: the counterparty's account number, digits only. Numbers often wrap across lines ("81285085" then "39" is "8128508539"); join them. null when the row shows none; never the statement's own account number
+- bank: the counterparty's bank or wallet as printed, e.g. "Paycom(Opay)", "First Bank Of Nigeria"; null when the row shows none
 Rows may wrap across several lines; join them. Later pages often repeat no column titles, so use the "Columns:" line given with the text. Narration labels such as "inward transfer" can be wrong: fees, charges, VAT, levies and stamp duty are money out; reversals and refunds are money in.
-Do not invent rows. Skip page headers, column titles, totals, account details, and opening/closing balance lines. Categorize credits as Income unless they are clearly transfers or refunds. Keep the statement order. If there are no transactions, return {"currency":null,"rows":[]}.`
+Do not invent rows. Skip page headers, column titles, totals, account details, and opening/closing balance lines. Keep the statement order. If there are no transactions, return {"currency":null,"rows":[]}.`
 
 type Extraction = { transactions: Transaction[]; currency: string }
 type ChunkExtraction = { transactions: Transaction[]; currency?: string }
@@ -82,9 +85,13 @@ export async function extractTransactions(
   )
   await rereadBrokenBoundaries(chunks, results, read)
   signal?.throwIfAborted()
-  const { transactions, stats } = reconcileBalances(
+  const reconciled = reconcileBalances(
     results.flatMap((result) => result.transactions)
   )
+  // After reconciling, so a catalog entry for one side (a fee is money out)
+  // sees each row's corrected direction.
+  const catalog = applyMerchantCatalog(reconciled.transactions)
+  const transactions = catalog.transactions.map(settleCategory)
   const currency = mostCommon(results.map((result) => result.currency))
 
   console.info("[extract]", {
@@ -94,7 +101,8 @@ export async function extractTransactions(
     transactions: transactions.length,
     currency: currency ?? "unknown",
     time: elapsed(startedAt),
-    ...stats,
+    catalogMatches: catalog.matched,
+    ...reconciled.stats,
   })
   return { transactions, currency: currency ?? FALLBACK_CURRENCY }
 }
@@ -309,6 +317,8 @@ function normalizeRows(value: unknown): Transaction[] {
 
     const type = rawType === "C" ? "credit" : "debit"
     const balance = asNumber(row[5])
+    const account = asAccount(row[7])
+    const bank = asString(row[8])
 
     return [
       {
@@ -319,9 +329,24 @@ function normalizeRows(value: unknown): Transaction[] {
         type,
         category: normalizeCategory(row[6], type),
         ...(Number.isFinite(balance) ? { balance } : {}),
+        ...(account ? { account } : {}),
+        ...(bank ? { bank } : {}),
       },
     ]
   })
+}
+
+/**
+ * Two calls the model makes inconsistently, even for the same counterparty
+ * within one statement: money in from people is Income, and money out to an
+ * account with nothing to show what it paid for is a Transfer.
+ */
+function settleCategory(row: Transaction): Transaction {
+  if (row.type === "credit" && row.category === "Transfers")
+    return { ...row, category: "Income" }
+  if (row.type === "debit" && row.category === "Other" && row.account)
+    return { ...row, category: "Transfers" }
+  return row
 }
 
 function normalizeCategory(
@@ -348,6 +373,12 @@ function normalizeMerchant(description: string): string {
 
 function asString(value: unknown): string {
   return typeof value === "string" ? value.trim() : ""
+}
+
+/** Digits only; anything too short or long to be an account number is dropped. */
+function asAccount(value: unknown): string | undefined {
+  const digits = String(value ?? "").replace(/\D/g, "")
+  return digits.length >= 6 && digits.length <= 16 ? digits : undefined
 }
 
 function asNumber(value: unknown): number {

@@ -13,7 +13,7 @@
 
 ## What it does
 
-- **Statement analysis:** reads every transaction in a PDF bank statement, including password-protected ones, and sorts each into one of 16 spending categories.
+- **Statement analysis:** reads every transaction in a PDF bank statement, including password-protected ones, with the counterparty's account and bank, and sorts each into one of 18 categories. Known merchants, billers, fees and banks come from a curated list, so they're always categorized the same way.
 - **A report you can trust:** balance chart, spending breakdown and totals checked against the statement's own opening and closing balances.
 - **An AI assistant:** answers questions about a statement using its actual transactions.
 - **Private by default:** the PDF is read in memory and discarded. Reports stay on the user's device unless they choose cloud storage, where the report and chat are encrypted with AES-256-GCM before they're saved.
@@ -127,10 +127,21 @@ Open [http://localhost:3000](http://localhost:3000).
 | `npm run lint` | ESLint |
 | `npm run typecheck` | TypeScript, no output |
 | `npm run format` | Prettier, including Tailwind class sorting |
-| `npm run eval` | Runs extraction on every PDF in `script/statements` and checks it against expected totals. See `script/eval.ts`. |
+| `npm run eval` | Runs extraction on every PDF in `script/statements` and checks it against expected totals and hand-labeled categories. See `script/eval.ts`. |
+| `npm run merchants` | Checks `lib/bank-statement/merchants.csv`. Add a narration to see what it matches, or `--unmatched` to list the counterparties nothing matches yet. |
 | `npm run grant -- <email> <free\|pro\|business\|report> [n]` | Gives an account a plan or one-time report credits, until checkout exists |
 
-Statements used by `npm run eval` are personal data: they're git-ignored, so keep them out of commits.
+Statements used by `npm run eval`, and their label files, are personal data: they're git-ignored, so keep them out of commits.
+
+### The merchant list
+
+`lib/bank-statement/merchants.csv` maps names found in narrations to a category and a clean name. A match overrides the model's guess, so "BuyPower" is always Utilities and never Shopping. Edit it in any spreadsheet app:
+
+- **patterns:** what to look for, separated by `|`. Patterns match whole words, with or without spaces ("buy power" matches "BUYPOWER"), never part of a word.
+- **kind:** `merchant`, `biller` or `fee` also rename the counterparty; `keyword` (a generic word such as "pharmacy") only sets the category; `bank` only cleans up bank names and never sets a category.
+- **direction:** `debit` or `credit` to apply to one side only, so a refund from Bolt isn't counted as a ride.
+
+When several patterns match, named entries beat keywords and the longest pattern wins. Run `npm run merchants` after editing, then `npm run eval` to see the effect on category accuracy.
 
 ## Production
 

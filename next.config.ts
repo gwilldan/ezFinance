@@ -10,6 +10,8 @@ const nextConfig: NextConfig = {
       "./node_modules/@napi-rs/canvas/**",
       "./node_modules/@napi-rs/canvas-*/**",
       "./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
+      // Read at runtime by lib/bank-statement/merchants.ts.
+      "./lib/bank-statement/merchants.csv",
     ],
   },
   images: {
