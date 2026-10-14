@@ -4,11 +4,10 @@ import {
   planAllowance,
   type PlanId,
   type UsageKind,
+  type UsageSource,
 } from "@/lib/pricing"
 import { createSupabaseAdminClient } from "@/lib/supabase/server"
 import type { UsageMeter, UsageSummary } from "./types"
-
-type UsageSource = "plan" | "credit" | "overage"
 
 type UsageRow = {
   plan: PlanId
@@ -19,6 +18,8 @@ type UsageRow = {
   agent_call_credits: number
   overage_reports: number
   overage_agent_calls: number
+  /** Business pages past the per-report limit this period. */
+  overage_pages: number
   /** The email belonged to a deleted account, which already had the trial. */
   free_trial_used: boolean
 }
@@ -38,8 +39,8 @@ const USAGE_RULES = Object.fromEntries(
 )
 
 /**
- * Spends one unit of usage. Returns a handle to give it back if the work
- * fails, or null when the account has nothing left.
+ * Spends one unit of usage. Returns what paid for it and a handle to give it
+ * back if the work fails, or null when the account has nothing left.
  */
 export async function spendUsage(userId: string, kind: UsageKind) {
   const supabase = createSupabaseAdminClient()
@@ -54,6 +55,7 @@ export async function spendUsage(userId: string, kind: UsageKind) {
   if (!source) return null
 
   return {
+    source,
     async refund() {
       const { error: refundError } = await supabase.rpc("release_usage", {
         p_user_id: userId,
@@ -63,6 +65,25 @@ export async function spendUsage(userId: string, kind: UsageKind) {
       if (refundError) console.error("Usage refund failed", refundError)
     },
   }
+}
+
+export async function getPlan(userId: string): Promise<PlanId> {
+  const { data, error } = await createSupabaseAdminClient()
+    .from("account_usage")
+    .select("plan")
+    .eq("user_id", userId)
+    .maybeSingle<{ plan: PlanId }>()
+  if (error) throw new Error(`Plan lookup failed: ${error.message}`)
+  return data?.plan ?? "free"
+}
+
+/** Records the pages a finished Business report ran past its limit. */
+export async function addPageOverage(userId: string, pages: number) {
+  const { error } = await createSupabaseAdminClient().rpc("add_page_overage", {
+    p_user_id: userId,
+    p_pages: pages,
+  })
+  if (error) throw new Error(`Page overage failed: ${error.message}`)
 }
 
 export async function getUsageSummary(userId: string): Promise<UsageSummary> {
@@ -115,6 +136,7 @@ export async function getUsageSummary(userId: string): Promise<UsageSummary> {
       row.agent_call_credits,
       row.overage_agent_calls
     ),
+    overagePages: expired ? 0 : row.overage_pages,
   }
 }
 
@@ -128,6 +150,7 @@ function emptyRow(): UsageRow {
     agent_call_credits: 0,
     overage_reports: 0,
     overage_agent_calls: 0,
+    overage_pages: 0,
     free_trial_used: false,
   }
 }

@@ -48,7 +48,7 @@ lib/
   supabase/          Server and admin Supabase clients
   pricing.ts         Every price and limit, in one place
   site.ts            Site name, copy and public URL used by all metadata
-script/              Extraction evals and a plan-granting tool
+script/              Extraction evals, a load test and a plan-granting tool
 supabase/migrations/ Database schema
 ```
 
@@ -90,17 +90,18 @@ cp .env.example .env
 
 ### 3. Set up the database
 
-Apply the migrations in order:
+The whole schema is one file. Run it on the new project:
 
 ```bash
 # With the Supabase CLI (linked to your project)
 supabase db push
 
 # Or with psql
-for f in supabase/migrations/*.sql; do
-  psql "$SUPABASE_DB_URI" -v ON_ERROR_STOP=1 --single-transaction -f "$f"
-done
+psql "$SUPABASE_DB_URI" -v ON_ERROR_STOP=1 --single-transaction \
+  -f supabase/migrations/20261014000000_schema.sql
 ```
+
+Every statement in it is safe to run again, so running it on an existing database only brings its functions, triggers and permissions up to date.
 
 ### 4. Enable sign-in
 
@@ -146,7 +147,7 @@ Before going live:
 - Set `NEXT_PUBLIC_SITE_URL` to the public domain, such as `https://ezfinance.app`. Canonical URLs, social cards, the sitemap and `llms.txt` use it. On Vercel, the production domain is used when it isn't set.
 - Use production values for every variable in the table above. `SUPABASE_SECRET_KEY` and `REPORT_ENCRYPTION_KEY` must only exist on the server.
 - Add the production callback URL, `https://<your-domain>/api/auth/callback`, to Supabase's redirect URLs.
-- Apply any new migrations before deploying code that depends on them.
+- Rerun `supabase/migrations/20261014000000_schema.sql` before deploying code that depends on a schema change. `create table if not exists` skips tables that already exist, so add a new column as `alter table … add column if not exists` in that file too, or it only reaches new databases.
 - Auth cookies are marked `Secure` when `NODE_ENV=production`, so serve the site over HTTPS.
 
 ### Deploying to Vercel

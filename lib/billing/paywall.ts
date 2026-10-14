@@ -16,3 +16,15 @@ export function usageLimitResponse(kind: UsageKind) {
     { status: 402 }
   )
 }
+
+/** 402 for a statement longer than what pays for it covers. */
+export function pageLimitResponse(pages: number, maxPages: number) {
+  return NextResponse.json(
+    {
+      error: `This statement has ${pages} pages, and your plan covers up to ${maxPages} per report. Upgrade to analyze longer statements.`,
+      code: USAGE_LIMIT_CODE,
+      kind: "pages",
+    },
+    { status: 402 }
+  )
+}

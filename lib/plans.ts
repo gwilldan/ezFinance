@@ -38,17 +38,22 @@ export const waitlistHref = (product: string) =>
 export const upgradeHref = (plan: string) => contact(`ezFinance ${plan}`)
 
 const plural = (count: number, word: string) =>
-  `${count} ${word}${count === 1 ? "" : "s"}`
+  `${count.toLocaleString("en")} ${word}${count === 1 ? "" : "s"}`
 
-function allowanceCopy({ reports, agentCalls }: Allowance, suffix = "") {
+function allowanceCopy(
+  { reports, agentCalls }: Allowance,
+  maxPages: number,
+  suffix = ""
+) {
   return [
     `${plural(reports, "report")}${suffix}`,
+    `Statements up to ${maxPages} pages`,
     `${plural(agentCalls, "AI assistant question")}${suffix}`,
   ]
 }
 
 const { free, oneTimeReport, pro, business } = PRICING
-const { perReport, perAgentCallBlock } = business.overage
+const { perReport, perAgentCallBlock, perExtraPage } = business.overage
 
 export const PLANS: Plan[] = [
   {
@@ -56,7 +61,7 @@ export const PLANS: Plan[] = [
     price: formatPrice(0),
     period: "/month",
     description: "Try ezFinance on a real statement.",
-    allowance: allowanceCopy(free.allowance),
+    allowance: allowanceCopy(free.allowance, free.maxPages),
     features: [
       "AI categorization into 16 categories",
       "Balance chart and spending breakdown",
@@ -70,7 +75,7 @@ export const PLANS: Plan[] = [
     price: formatPrice(oneTimeReport.price),
     period: "/report",
     description: "Pay once for one more statement. Use it whenever you like.",
-    allowance: allowanceCopy(oneTimeReport.credits),
+    allowance: allowanceCopy(oneTimeReport.credits, oneTimeReport.maxPages),
     features: [
       "Every transaction in that report",
       "Credits never expire",
@@ -85,7 +90,7 @@ export const PLANS: Plan[] = [
     period: "/month",
     yearly: { price: formatPrice(pro.yearly), saving: yearlySaving(pro) },
     description: "For keeping an eye on your money every month.",
-    allowance: allowanceCopy(pro.allowance, " a month"),
+    allowance: allowanceCopy(pro.allowance, pro.maxPages, " a month"),
     features: [
       "Recurring charge detection",
       "Savings recommendations",
@@ -105,8 +110,8 @@ export const PLANS: Plan[] = [
       saving: yearlySaving(business),
     },
     description: "For accountants and consultants with many clients.",
-    allowance: allowanceCopy(business.allowance, " a month"),
-    overage: `Then ${formatPrice(perReport)} per extra report and ${formatPrice(perAgentCallBlock.price)} per ${perAgentCallBlock.calls} extra questions`,
+    allowance: allowanceCopy(business.allowance, business.maxPages, " a month"),
+    overage: `Then ${formatPrice(perReport)} per extra report, ${formatPrice(perAgentCallBlock.price)} per ${perAgentCallBlock.calls} extra questions and ${formatPrice(perExtraPage)} per page past ${business.maxPages}`,
     features: [
       "Everything in Pro",
       "Keeps working past your allowance",
@@ -124,8 +129,7 @@ export const FAQS = [
   },
   {
     question: "What counts as a report?",
-    answer:
-      "Each statement you upload and analyze is one report, however many pages it has. If an upload fails, it doesn’t count.",
+    answer: `Each statement you upload and analyze is one report. Each plan covers statements up to a number of pages: ${free.maxPages} on Free, ${oneTimeReport.maxPages} for a one-time report, ${pro.maxPages} on Pro and ${business.maxPages} on Business, which can go further at ${formatPrice(perExtraPage)} per extra page. If an upload fails or is too long for your plan, it doesn’t count.`,
   },
   {
     question: "What is an AI assistant question?",

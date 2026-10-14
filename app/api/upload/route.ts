@@ -1,5 +1,5 @@
-import { usageLimitResponse } from "@/lib/billing/paywall"
-import { spendUsage } from "@/lib/billing/usage"
+import { pageLimitResponse, usageLimitResponse } from "@/lib/billing/paywall"
+import { addPageOverage, getPlan, spendUsage } from "@/lib/billing/usage"
 import { buildReport } from "@/lib/bank-statement/build-report"
 import {
   elapsed,
@@ -7,6 +7,7 @@ import {
   type ExtractOptions,
 } from "@/lib/bank-statement/extract"
 import { PdfPasswordError, readPdfPages } from "@/lib/bank-statement/pdf"
+import { pageAllowance } from "@/lib/pricing"
 import { saveCloudReport, saveLocalReportLocation } from "@/lib/reports/server"
 import {
   reportStorageOf,
@@ -31,6 +32,8 @@ type Upload = {
   fileName: string
   userId: string
   storage: ReportStorage
+  /** Pages past the plan's limit, billed when the report is finished. */
+  extraPages: number
 }
 
 export async function POST(request: NextRequest) {
@@ -61,14 +64,23 @@ export async function POST(request: NextRequest) {
     // Reading the PDF is quick, so a locked or broken file still gets a
     // plain JSON answer; only the analysis is streamed.
     const startedAt = performance.now()
-    const { pages, total } = await readPdfPages(
-      new Uint8Array(await file.arrayBuffer()),
-      typeof password === "string" && password ? password : undefined
-    ).catch(async (error) => {
+    const [{ pages, total }, plan] = await Promise.all([
+      readPdfPages(
+        new Uint8Array(await file.arrayBuffer()),
+        typeof password === "string" && password ? password : undefined
+      ),
+      getPlan(user.id),
+    ]).catch(async (error) => {
       await spend.refund()
       throw error
     })
     console.info(`[upload] parsed ${total} pages: ${elapsed(startedAt)}`)
+
+    const allowed = pageAllowance(plan, spend.source)
+    if (total > allowed.included && !allowed.overage) {
+      await spend.refund()
+      return pageLimitResponse(total, allowed.included)
+    }
 
     return streamAnalysis(
       {
@@ -77,6 +89,7 @@ export async function POST(request: NextRequest) {
         fileName: file.name || "Bank statement.pdf",
         userId: user.id,
         storage: reportStorageOf(user.user_metadata),
+        extraPages: Math.max(0, total - allowed.included),
       },
       spend,
       request.signal
@@ -181,13 +194,23 @@ async function analyze(
   // browser, which saves them locally, and only their location is kept here.
   if (upload.storage === "cloud") {
     await saveCloudReport(upload.userId, id, report)
+    await recordExtraPages(upload)
     return { type: "result", id, storage: upload.storage }
   }
   // A location for a report no browser received would list it in the
   // history with nothing to open.
   options.signal?.throwIfAborted()
   await saveLocalReportLocation(upload.userId, id, report)
+  await recordExtraPages(upload)
   return { type: "result", id, storage: upload.storage, report }
+}
+
+/** The report is done by now, so a failed record mustn't fail it. */
+async function recordExtraPages({ userId, extraPages, fileName }: Upload) {
+  if (!extraPages) return
+  await addPageOverage(userId, extraPages).catch((error) =>
+    console.error(`Page overage not recorded for ${fileName}`, error)
+  )
 }
 
 function errorResponse(error: unknown) {

@@ -18,6 +18,8 @@ export type UsageSummary = {
   periodEnd: string | null
   reports: UsageMeter
   agentCalls: UsageMeter
+  /** Business pages past the per-report limit this period, billed per page. */
+  overagePages: number
 }
 
 /** Response code the API sends with HTTP 402 when a limit is reached. */

@@ -28,7 +28,11 @@ export function UsageCard({
       </div>
 
       <div className="mt-4 space-y-4">
-        <Meter label="Reports" meter={usage.reports} />
+        <Meter
+          label="Reports"
+          meter={usage.reports}
+          extraPages={usage.overagePages}
+        />
         <Meter label="AI assistant questions" meter={usage.agentCalls} />
       </div>
 
@@ -43,7 +47,16 @@ export function UsageCard({
   )
 }
 
-function Meter({ label, meter }: { label: string; meter: UsageMeter }) {
+function Meter({
+  label,
+  meter,
+  extraPages,
+}: {
+  label: string
+  meter: UsageMeter
+  /** Business pages past the per-report limit, billed per page. */
+  extraPages?: number
+}) {
   const used = Math.min(meter.used, meter.included)
   const percent = meter.included ? (used / meter.included) * 100 : 100
   const exhausted = meter.remaining === 0
@@ -51,6 +64,7 @@ function Meter({ label, meter }: { label: string; meter: UsageMeter }) {
   const extras = [
     meter.credits ? `+${meter.credits} purchased` : null,
     meter.overage ? `${meter.overage} extra this month` : null,
+    extraPages ? `${extraPages} extra pages this month` : null,
   ].filter(Boolean)
 
   return (

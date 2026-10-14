@@ -19,6 +19,7 @@ export async function setPlan(userId: string, plan: PlanId) {
         agent_calls_used: 0,
         overage_reports: 0,
         overage_agent_calls: 0,
+        overage_pages: 0,
       }
     : {}
 
