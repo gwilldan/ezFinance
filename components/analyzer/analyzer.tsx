@@ -5,11 +5,16 @@ import type { StatementReport } from "@/lib/bank-statement/schema"
 import { USAGE_LIMIT_CODE, type UsageSummary } from "@/lib/billing/types"
 import { spaceGrotesk } from "@/lib/fonts"
 import { saveLocalReport, useLocalReportSummaries } from "@/lib/report-store"
-import type { RecordedReport, ReportStorage } from "@/lib/reports/types"
+import {
+  UPLOAD_STREAM_TYPE,
+  type RecordedReport,
+  type ReportStorage,
+  type UploadEvent,
+} from "@/lib/reports/types"
 import { ArrowRight, FileUp } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ChangeEvent, useEffect, useRef, useState } from "react"
+import { ChangeEvent, useRef, useState } from "react"
 import { PasswordModal, type PasswordReason } from "./password-modal"
 import { ReportHistory } from "./report-history"
 import { UploadStateCard } from "./upload-state-card"
@@ -24,15 +29,11 @@ type UploadResponse = {
   passwordRequired?: PasswordReason
 }
 
-const LOADING_STAGES = [
-  "Uploading your account statement...",
-  "Reading your statement pages...",
-  "Analyzing your transactions...",
-  "Categorizing your spending...",
-  "Plotting your financial plan...",
-]
+type Progress = { done: number; total: number }
 
-const LOADING_STAGE_INTERVAL = 8_000
+// The server pings every 10 seconds, so this long without a word means the
+// connection is stuck rather than the analysis being slow.
+const STALL_TIMEOUT_MS = 45_000
 
 export default function Analyzer({
   userId,
@@ -50,7 +51,7 @@ export default function Analyzer({
   >("idle")
   const [fileName, setFileName] = useState("Customer Statement.pdf")
   const [error, setError] = useState<string | null>(null)
-  const [loadingStage, setLoadingStage] = useState(0)
+  const [progress, setProgress] = useState<Progress | null>(null)
   const [limitReached, setLimitReached] = useState(false)
   // A protected file waiting for its password. The password itself is never
   // kept here; it only lives in the modal and the one request that uses it.
@@ -58,23 +59,6 @@ export default function Analyzer({
     file: File
     reason: PasswordReason
   } | null>(null)
-
-  useEffect(() => {
-    if (uploadState !== "uploading") return
-
-    const startedAt = Date.now()
-    const timer = window.setInterval(() => {
-      const elapsed = Date.now() - startedAt
-      setLoadingStage(
-        Math.min(
-          LOADING_STAGES.length - 1,
-          Math.floor(elapsed / LOADING_STAGE_INTERVAL)
-        )
-      )
-    }, 1_000)
-
-    return () => window.clearInterval(timer)
-  }, [uploadState])
 
   async function handleFileUpload(file: File, password?: string) {
     if (file.type !== "application/pdf") {
@@ -88,14 +72,14 @@ export default function Analyzer({
     setUploadState("uploading")
     setError(null)
     setLimitReached(false)
-    setLoadingStage(0)
+    setProgress(null)
 
     try {
       const formData = new FormData()
       formData.append("file", file)
       if (password) formData.append("password", password)
 
-      const data = await uploadStatement(formData)
+      const data = await uploadStatement(formData, setProgress)
 
       if (data.passwordRequired) {
         setLocked({ file, reason: data.passwordRequired })
@@ -196,9 +180,14 @@ export default function Analyzer({
                   ? "error"
                   : "uploading"
             }
+            progress={
+              uploadState === "uploading" && progress?.total
+                ? progress.done / progress.total
+                : undefined
+            }
             heading={
               uploadState === "uploading"
-                ? LOADING_STAGES[loadingStage]
+                ? uploadingHeading(progress)
                 : uploadState === "success"
                   ? "Statement ready"
                   : "Something went wrong"
@@ -292,31 +281,83 @@ function UploadButton({
   )
 }
 
-function uploadStatement(formData: FormData): Promise<UploadResponse> {
-  return new Promise((resolve, reject) => {
-    const request = new XMLHttpRequest()
-    request.open("POST", "/api/upload")
-    request.responseType = "json"
-    request.timeout = 500_000
+function uploadingHeading(progress: Progress | null) {
+  if (!progress) return "Uploading your account statement..."
+  if (progress.done < progress.total / 2)
+    return "Reading your statement pages..."
+  if (progress.done < progress.total) return "Analyzing your transactions..."
+  return "Categorizing your spending..."
+}
 
-    request.addEventListener("load", () => {
-      const data = (request.response ?? {}) as UploadResponse
-      if (
-        (request.status >= 200 && request.status < 300) ||
-        data.passwordRequired ||
-        data.code === USAGE_LIMIT_CODE
-      ) {
-        resolve(data)
-      } else {
-        reject(new Error(data.error ?? "Unable to upload your PDF."))
-      }
+/**
+ * Sends the statement and follows the analysis as it streams back. Checks that
+ * fail before the analysis starts (a password, the usage limit) come back as
+ * plain JSON instead.
+ */
+async function uploadStatement(
+  formData: FormData,
+  onProgress: (progress: Progress) => void
+): Promise<UploadResponse> {
+  const stalled = new AbortController()
+  let stallTimer: number | undefined
+  const heardFrom = () => {
+    window.clearTimeout(stallTimer)
+    stallTimer = window.setTimeout(() => stalled.abort(), STALL_TIMEOUT_MS)
+  }
+
+  let response: Response
+  try {
+    response = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+      signal: stalled.signal,
     })
-    request.addEventListener("error", () =>
-      reject(new Error("The upload connection failed."))
-    )
-    request.addEventListener("timeout", () =>
-      reject(new Error("The analysis took too long. Please try a smaller PDF."))
-    )
-    request.send(formData)
-  })
+  } catch {
+    throw new Error("The upload connection failed.")
+  }
+
+  if (!response.headers.get("content-type")?.startsWith(UPLOAD_STREAM_TYPE)) {
+    const data = (await response.json().catch(() => ({}))) as UploadResponse
+    if (response.ok || data.passwordRequired || data.code === USAGE_LIMIT_CODE)
+      return data
+    throw new Error(data.error ?? "Unable to upload your PDF.")
+  }
+
+  try {
+    heardFrom()
+    for await (const event of readEvents(response.body!)) {
+      heardFrom()
+      if (event.type === "progress") onProgress(event)
+      if (event.type === "result") return event
+      if (event.type === "error") throw new Error(event.error)
+    }
+  } catch (error) {
+    if (!(error instanceof TypeError) && !stalled.signal.aborted) throw error
+  } finally {
+    window.clearTimeout(stallTimer)
+  }
+  throw new Error(
+    "The connection dropped before your report was ready. Please try again."
+  )
+}
+
+/** The upload's newline-delimited JSON events, as they arrive. */
+async function* readEvents(body: ReadableStream<Uint8Array>) {
+  const reader = body.getReader()
+  const decoder = new TextDecoder()
+  let buffered = ""
+  try {
+    for (;;) {
+      const { value, done } = await reader.read()
+      if (done) return
+      buffered += decoder.decode(value, { stream: true })
+      const lines = buffered.split("\n")
+      buffered = lines.pop() ?? ""
+      for (const line of lines) {
+        if (line.trim()) yield JSON.parse(line) as UploadEvent
+      }
+    }
+  } finally {
+    reader.releaseLock()
+  }
 }

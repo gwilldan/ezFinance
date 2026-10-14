@@ -11,7 +11,8 @@
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
     "eval": "tsx --env-file=.env script/eval.ts",
-    "grant": "tsx --env-file=.env script/grant.ts"
+    "grant": "tsx --env-file=.env script/grant.ts",
+    "loadtest": "tsx --env-file=.env script/loadtest.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

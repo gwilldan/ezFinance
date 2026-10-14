@@ -35,9 +35,16 @@ type ChunkReader = (
   text: string,
   temperature: number
 ) => Promise<ChunkExtraction>
+export type ExtractOptions = {
+  /** Called as each chunk's read finishes, starting at 0 of the total. */
+  onProgress?: (done: number, total: number) => void
+  /** Stops the remaining model calls, e.g. when nobody is waiting anymore. */
+  signal?: AbortSignal
+}
 
 export async function extractTransactions(
-  pages: string[]
+  pages: string[],
+  { onProgress, signal }: ExtractOptions = {}
 ): Promise<Extraction> {
   const startedAt = performance.now()
   // Later pages lack the column titles, and a page starting "10/05/24" is
@@ -56,13 +63,25 @@ export async function extractTransactions(
   // Every model call, re-reads included, so rate-limit pressure shows in logs.
   let calls = 0
   const read: ChunkReader = (text, temperature) => {
+    // Thrown synchronously, so it skips the retry loops' `.catch` and stops
+    // the whole extraction instead of counting as a failed read.
+    signal?.throwIfAborted()
     calls += 1
-    return extractChunk(text, temperature)
+    return extractChunk(text, temperature, signal)
   }
-  const results = await mapWithConcurrency(chunks, CONCURRENCY, (chunk) =>
-    extractChunkWithRetry(chunk, read)
+  let done = 0
+  onProgress?.(done, chunks.length)
+  const results = await mapWithConcurrency(
+    chunks,
+    CONCURRENCY,
+    async (chunk) => {
+      const result = await extractChunkWithRetry(chunk, read)
+      onProgress?.((done += 1), chunks.length)
+      return result
+    }
   )
   await rereadBrokenBoundaries(chunks, results, read)
+  signal?.throwIfAborted()
   const { transactions, stats } = reconcileBalances(
     results.flatMap((result) => result.transactions)
   )
@@ -188,16 +207,20 @@ export function elapsed(startedAt: number): string {
 
 async function extractChunk(
   text: string,
-  temperature: number
+  temperature: number,
+  signal?: AbortSignal
 ): Promise<ChunkExtraction> {
-  const response = await chatCompletion({
-    temperature,
-    response_format: { type: "json_object" },
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: text },
-    ],
-  })
+  const response = await chatCompletion(
+    {
+      temperature,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: text },
+      ],
+    },
+    { signal }
+  )
 
   const content = response.choices[0]?.message?.content
   if (!content) throw new Error("The model returned an empty extraction.")

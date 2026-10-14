@@ -35,6 +35,25 @@ export type RecordedReport =
     }
   | { id: string; generatedAt: string; storage: "local" }
 
+/**
+ * One line of the upload's streamed response (newline-delimited JSON). The
+ * stream ends with exactly one "result" or "error".
+ */
+export type UploadEvent =
+  | { type: "progress"; done: number; total: number }
+  /** Sent while nothing else is, so the connection never goes quiet. */
+  | { type: "ping" }
+  | {
+      type: "result"
+      id: string
+      storage: ReportStorage
+      /** Only for device storage; cloud reports stay on the server. */
+      report?: StatementReport
+    }
+  | { type: "error"; error: string }
+
+export const UPLOAD_STREAM_TYPE = "application/x-ndjson"
+
 /** Most chat messages kept with a statement. */
 export const MAX_SAVED_MESSAGES = 200
 
