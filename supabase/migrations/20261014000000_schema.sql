@@ -194,6 +194,11 @@ create table if not exists public.billing_events (
   received_at timestamptz not null default now()
 );
 
+-- The checkout a granted checkout.completed paid for, so the settings page can
+-- tell the buyer it went through. Added after the table, so existing
+-- databases get it too.
+alter table public.billing_events add column if not exists checkout_ref text unique;
+
 alter table public.billing_events enable row level security;
 
 --------------------------------------------------------------------------------

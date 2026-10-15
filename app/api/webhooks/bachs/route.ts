@@ -15,7 +15,7 @@ type BachsEvent = {
 
 type CheckoutCompleted = {
   payment_status: "paid" | "no_payment_required"
-  metadata: { user_id?: string; product?: string } | null
+  metadata: { user_id?: string; product?: string; ref?: string } | null
   subscription: { subscription_id: string } | null
 }
 
@@ -49,18 +49,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Try again." }, { status: 500 })
   }
 
+  let grantedRef: string | undefined
   try {
-    await handle(event)
+    grantedRef = await handle(event)
   } catch (handleError) {
     // Forget the event so Bachs's retry runs it again.
     await events.delete().eq("id", event.id)
     console.error(`Bachs ${event.type} failed`, handleError)
     return NextResponse.json({ error: "Try again." }, { status: 500 })
   }
+
+  // Lets the buyer's settings page see the grant. Outside the try: failing
+  // here must not forget the event, or the retry would grant it twice.
+  if (grantedRef) {
+    const { error: refError } = await events
+      .update({ checkout_ref: grantedRef })
+      .eq("id", event.id)
+    if (refError) console.error("Checkout ref save failed", refError)
+  }
   return NextResponse.json({ received: true })
 }
 
-async function handle(event: BachsEvent) {
+/** Runs one event; returns the checkout ref when it granted a purchase. */
+async function handle(event: BachsEvent): Promise<string | undefined> {
   switch (event.type) {
     case "checkout.completed": {
       const data = event.data as CheckoutCompleted
@@ -76,7 +87,7 @@ async function handle(event: BachsEvent) {
       } else {
         await addOneTimeReports(userId)
       }
-      return
+      return data.metadata?.ref
     }
 
     case "customer.subscription.updated":

@@ -17,16 +17,17 @@ import {
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import type { ReactNode } from "react"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { ConfirmDialog } from "./confirm-dialog"
 
 type Dialog = "data" | "account" | null
 type SaveState = "idle" | "saved" | "error"
-type CheckoutState = "waiting" | "updated" | "slow" | null
 
-/** How often, and for how long, to re-check usage after a checkout. */
+/** How often, and for how long, to re-check a checkout that's still pending. */
 const CHECKOUT_POLL_MS = 3_000
 const CHECKOUT_POLL_LIMIT_MS = 60_000
+/** Long enough to read the confirmation before going home. */
+const CHECKOUT_HOME_DELAY_MS = 1_500
 
 const STORAGE_OPTIONS: {
   value: ReportStorage
@@ -52,14 +53,15 @@ export function SettingsPage({
   userId,
   email,
   usage,
-  checkoutSucceeded,
+  checkout,
   emailTips: initialEmailTips,
   reportStorage: initialReportStorage,
 }: {
   userId: string
   email: string
   usage: UsageSummary
-  checkoutSucceeded: boolean
+  /** Back from Bachs: whether the webhook has granted the purchase yet. */
+  checkout: "pending" | "granted" | null
   emailTips: boolean
   reportStorage: ReportStorage
 }) {
@@ -70,30 +72,27 @@ export function SettingsPage({
   const [dialog, setDialog] = useState<Dialog>(null)
   const [dataCleared, setDataCleared] = useState(false)
   const router = useRouter()
-  const [checkout, setCheckout] = useState<CheckoutState>(
-    checkoutSucceeded ? "waiting" : null
-  )
-  // Usage as it was before the webhook landed; any change means it has.
-  const usageBeforeCheckout = useRef(JSON.stringify(usage))
+  const [checkoutTimedOut, setCheckoutTimedOut] = useState(false)
 
-  // Back from Bachs: re-render with fresh usage until the webhook shows up.
+  // Re-render from the server until the webhook has granted the purchase.
   useEffect(() => {
-    if (checkout !== "waiting") return
+    if (checkout !== "pending" || checkoutTimedOut) return
     const poll = setInterval(() => router.refresh(), CHECKOUT_POLL_MS)
-    const giveUp = setTimeout(() => setCheckout("slow"), CHECKOUT_POLL_LIMIT_MS)
+    const giveUp = setTimeout(
+      () => setCheckoutTimedOut(true),
+      CHECKOUT_POLL_LIMIT_MS
+    )
     return () => {
       clearInterval(poll)
       clearTimeout(giveUp)
     }
-  }, [checkout, router])
+  }, [checkout, checkoutTimedOut, router])
 
   useEffect(() => {
-    if (checkout !== "waiting") return
-    if (JSON.stringify(usage) === usageBeforeCheckout.current) return
-    setCheckout("updated")
-    // Drop ?checkout=success so a reload doesn't start waiting again.
-    window.history.replaceState(null, "", window.location.pathname)
-  }, [checkout, usage])
+    if (checkout !== "granted") return
+    const goHome = setTimeout(() => router.replace("/"), CHECKOUT_HOME_DELAY_MS)
+    return () => clearTimeout(goHome)
+  }, [checkout, router])
 
   async function toggleEmailTips(next: boolean) {
     setEmailTips(next)
@@ -173,21 +172,21 @@ export function SettingsPage({
               role="status"
               className="mt-5 flex items-center gap-2 rounded-2xl border border-cyan-accent/30 bg-cyan-accent-soft p-4 text-sm"
             >
-              {checkout === "waiting" ? (
+              {checkout === "pending" && !checkoutTimedOut ? (
                 <>
                   <LoaderCircle
                     className="size-4 shrink-0 animate-spin text-cyan-accent motion-reduce:animate-none"
                     aria-hidden
                   />
-                  Payment received. Updating your plan…
+                  Payment received. Confirming your purchase…
                 </>
-              ) : checkout === "updated" ? (
+              ) : checkout === "granted" ? (
                 <>
                   <Check
                     className="size-4 shrink-0 text-cyan-accent"
                     aria-hidden
                   />
-                  Payment received. Your plan is updated.
+                  Purchase confirmed. Taking you home…
                 </>
               ) : (
                 <>

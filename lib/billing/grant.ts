@@ -69,6 +69,17 @@ export async function findUserIdBySubscription(subscriptionId: string) {
   return data?.user_id ?? null
 }
 
+/** Whether the checkout with this ref (from its success URL) has been granted. */
+export async function isCheckoutGranted(ref: string) {
+  const { data, error } = await createSupabaseAdminClient()
+    .from("billing_events")
+    .select("id")
+    .eq("checkout_ref", ref)
+    .maybeSingle()
+  if (error) throw new Error(`Checkout lookup failed: ${error.message}`)
+  return data !== null
+}
+
 export async function findUserIdByEmail(email: string) {
   const admin = createSupabaseAdminClient().auth.admin
   const target = email.trim().toLowerCase()

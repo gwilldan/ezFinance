@@ -1,5 +1,5 @@
 import type { PlanId } from "@/lib/pricing"
-import { createHmac, timingSafeEqual } from "node:crypto"
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto"
 
 /*
  * Bachs checkout (https://docs.bachs.io). A purchase starts at /api/checkout,
@@ -30,7 +30,10 @@ export type ProductKey = keyof typeof PRODUCTS
 export const isProductKey = (value: unknown): value is ProductKey =>
   typeof value === "string" && Object.hasOwn(PRODUCTS, value)
 
-/** Creates a hosted checkout and returns its URL. */
+/**
+ * Creates a hosted checkout and returns its URL. The ref comes back on the
+ * webhook and on the success URL, so the buyer's page can wait for the grant.
+ */
 export async function createCheckout({
   product,
   userId,
@@ -44,6 +47,7 @@ export async function createCheckout({
   if (!productId) throw new Error(`No Bachs product configured for ${product}.`)
 
   const site = process.env.NEXT_PUBLIC_SITE_URL
+  const ref = randomUUID()
   const response = await fetch(
     `${process.env.BACHS_API_URL}/v1/checkout-sessions`,
     {
@@ -56,8 +60,8 @@ export async function createCheckout({
         product_cart: [{ product_id: productId, quantity: 1 }],
         customer: { email },
         // Comes back on the webhook, so it knows whom to grant and what.
-        metadata: { user_id: userId, product },
-        success_url: `${site}/settings?checkout=success`,
+        metadata: { user_id: userId, product, ref },
+        success_url: `${site}/settings?checkout=${ref}`,
         cancel_url: `${site}/pricing`,
       }),
     }
