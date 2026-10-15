@@ -58,11 +58,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "File must be a PDF" }, { status: 400 })
     }
 
-    const spend = await spendUsage(user.id, "reports")
-    if (!spend) return usageLimitResponse("reports")
-
     // Reading the PDF is quick, so a locked or broken file still gets a
-    // plain JSON answer; only the analysis is streamed.
+    // plain JSON answer; only the analysis is streamed. It comes before
+    // spending, because the page count decides what should pay.
     const startedAt = performance.now()
     const [{ pages, total }, plan] = await Promise.all([
       readPdfPages(
@@ -70,11 +68,16 @@ export async function POST(request: NextRequest) {
         typeof password === "string" && password ? password : undefined
       ),
       getPlan(user.id),
-    ]).catch(async (error) => {
-      await spend.refund()
-      throw error
-    })
+    ])
     console.info(`[upload] parsed ${total} pages: ${elapsed(startedAt)}`)
+
+    // Too long for the plan but not for a credit: spend the credit, so an
+    // unused allowance doesn't turn the statement away.
+    const preferCredit =
+      total > pageAllowance(plan, "plan").included &&
+      total <= pageAllowance(plan, "credit").included
+    const spend = await spendUsage(user.id, "reports", { preferCredit })
+    if (!spend) return usageLimitResponse("reports")
 
     const allowed = pageAllowance(plan, spend.source)
     if (total > allowed.included && !allowed.overage) {

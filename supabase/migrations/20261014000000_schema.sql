@@ -72,7 +72,12 @@ $$;
 -- p_rules maps each plan to {"reports", "agentCalls", "monthly", "overage"}
 -- (built from lib/pricing.ts). Returns 'plan', 'credit', 'overage', or null
 -- when the account has nothing left.
-create or replace function public.consume_usage(p_user_id uuid, p_kind text, p_rules jsonb)
+-- The version before p_prefer_credit; a new argument makes a separate function.
+drop function if exists public.consume_usage(uuid, text, jsonb);
+
+-- p_prefer_credit spends a report credit ahead of the plan's allowance, for a
+-- statement only the credit's page limit covers.
+create or replace function public.consume_usage(p_user_id uuid, p_kind text, p_rules jsonb, p_prefer_credit boolean default false)
 returns text
 language plpgsql
 security definer
@@ -99,7 +104,10 @@ begin
   end;
 
   if p_kind = 'reports' then
-    if v_row.reports_used < v_allowance then
+    if p_prefer_credit and v_row.report_credits > 0 then
+      update account_usage set report_credits = report_credits - 1, updated_at = now() where user_id = p_user_id;
+      return 'credit';
+    elsif v_row.reports_used < v_allowance then
       update account_usage set reports_used = reports_used + 1, updated_at = now() where user_id = p_user_id;
       return 'plan';
     elsif v_row.report_credits > 0 then
@@ -352,7 +360,7 @@ create trigger mark_returning_account
 --------------------------------------------------------------------------------
 
 revoke all on function public.roll_usage_period(uuid, boolean) from public, anon, authenticated;
-revoke all on function public.consume_usage(uuid, text, jsonb) from public, anon, authenticated;
+revoke all on function public.consume_usage(uuid, text, jsonb, boolean) from public, anon, authenticated;
 revoke all on function public.release_usage(uuid, text, text) from public, anon, authenticated;
 revoke all on function public.add_usage_credits(uuid, integer, integer) from public, anon, authenticated;
 revoke all on function public.add_page_overage(uuid, integer) from public, anon, authenticated;
@@ -361,7 +369,7 @@ revoke all on function public.archive_deleted_account() from public, anon, authe
 revoke all on function public.mark_returning_account() from public, anon, authenticated;
 
 grant execute on function public.roll_usage_period(uuid, boolean) to service_role;
-grant execute on function public.consume_usage(uuid, text, jsonb) to service_role;
+grant execute on function public.consume_usage(uuid, text, jsonb, boolean) to service_role;
 grant execute on function public.release_usage(uuid, text, text) to service_role;
 grant execute on function public.add_usage_credits(uuid, integer, integer) to service_role;
 grant execute on function public.add_page_overage(uuid, integer) to service_role;

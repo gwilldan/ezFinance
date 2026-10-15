@@ -41,13 +41,19 @@ const USAGE_RULES = Object.fromEntries(
 /**
  * Spends one unit of usage. Returns what paid for it and a handle to give it
  * back if the work fails, or null when the account has nothing left.
+ * preferCredit spends a purchased credit before the plan's allowance.
  */
-export async function spendUsage(userId: string, kind: UsageKind) {
+export async function spendUsage(
+  userId: string,
+  kind: UsageKind,
+  { preferCredit = false } = {}
+) {
   const supabase = createSupabaseAdminClient()
   const { data, error } = await supabase.rpc("consume_usage", {
     p_user_id: userId,
     p_kind: kind,
     p_rules: USAGE_RULES,
+    p_prefer_credit: preferCredit,
   })
   if (error) throw new Error(`Usage check failed: ${error.message}`)
 
