@@ -2,15 +2,21 @@ import { isMonthlyPlan, PRICING, type PlanId } from "@/lib/pricing"
 import { createSupabaseAdminClient } from "@/lib/supabase/server"
 
 /*
- * Plan changes and purchases. Called by the admin script today; a payment
- * webhook (Paystack, Stripe) calls the same functions later.
+ * Plan changes and purchases. Called by the Bachs webhook
+ * (app/api/webhooks/bachs) and the admin grant script.
  */
 
 /**
  * Moves an account to a plan. Paid plans start a fresh billing month; moving
  * back to Free keeps the counters, so the lifetime free allowance isn't reset.
+ * A paid plan bought through Bachs records its subscription, so cancelling it
+ * can find the account; Free clears it.
  */
-export async function setPlan(userId: string, plan: PlanId) {
+export async function setPlan(
+  userId: string,
+  plan: PlanId,
+  subscriptionId?: string
+) {
   const now = new Date().toISOString()
   const freshPeriod = isMonthlyPlan(plan)
     ? {
@@ -22,10 +28,22 @@ export async function setPlan(userId: string, plan: PlanId) {
         overage_pages: 0,
       }
     : {}
+  const subscription =
+    plan === "free"
+      ? { bachs_subscription_id: null }
+      : subscriptionId
+        ? { bachs_subscription_id: subscriptionId }
+        : {}
 
   const { error } = await createSupabaseAdminClient()
     .from("account_usage")
-    .upsert({ user_id: userId, plan, ...freshPeriod, updated_at: now })
+    .upsert({
+      user_id: userId,
+      plan,
+      ...freshPeriod,
+      ...subscription,
+      updated_at: now,
+    })
   if (error) throw new Error(`Could not set plan: ${error.message}`)
 }
 
@@ -38,6 +56,17 @@ export async function addOneTimeReports(userId: string, quantity = 1) {
     p_agent_calls: credits.agentCalls * quantity,
   })
   if (error) throw new Error(`Could not add credits: ${error.message}`)
+}
+
+/** The account a Bachs subscription belongs to, if it's still the current one. */
+export async function findUserIdBySubscription(subscriptionId: string) {
+  const { data, error } = await createSupabaseAdminClient()
+    .from("account_usage")
+    .select("user_id")
+    .eq("bachs_subscription_id", subscriptionId)
+    .maybeSingle<{ user_id: string }>()
+  if (error) throw new Error(`Subscription lookup failed: ${error.message}`)
+  return data?.user_id ?? null
 }
 
 export async function findUserIdByEmail(email: string) {

@@ -1,3 +1,4 @@
+import type { ProductKey } from "@/lib/billing/bachs"
 import {
   formatPrice,
   PRICING,
@@ -14,7 +15,7 @@ export type Plan = {
   price: string
   period?: string
   /** Paying yearly instead: the yearly price and the whole-percent saving. */
-  yearly?: { price: string; saving: number }
+  yearly?: { price: string; saving: number; href?: string }
   description: string
   /** Usage the plan includes, listed first among its ticked features. */
   allowance: string[]
@@ -34,8 +35,12 @@ const contact = (subject: string) =>
 export const waitlistHref = (product: string) =>
   contact(`ezFinance ${product} waitlist`)
 
-/** Where upgrade prompts send people until checkout exists. */
+/** Plans sold by talking to us rather than at checkout. */
 export const upgradeHref = (plan: string) => contact(`ezFinance ${plan}`)
+
+/** Starts a Bachs checkout (app/api/checkout). Use a plain <a>: prefetching would create checkouts. */
+export const checkoutHref = (product: ProductKey) =>
+  `/api/checkout?product=${product}`
 
 const plural = (count: number, word: string) =>
   `${count.toLocaleString("en")} ${word}${count === 1 ? "" : "s"}`
@@ -81,14 +86,18 @@ export const PLANS: Plan[] = [
       "Credits never expire",
       "No subscription and no renewal",
     ],
-    cta: { label: "Unlock a report", href: upgradeHref("one-time report") },
+    cta: { label: "Unlock a report", href: checkoutHref("report") },
     badge: "Pay once",
   },
   {
     name: "Pro",
     price: formatPrice(pro.monthly),
     period: "/month",
-    yearly: { price: formatPrice(pro.yearly), saving: yearlySaving(pro) },
+    yearly: {
+      price: formatPrice(pro.yearly),
+      saving: yearlySaving(pro),
+      href: checkoutHref("pro_yearly"),
+    },
     description: "For keeping an eye on your money every month.",
     allowance: allowanceCopy(pro.allowance, pro.maxPages, " a month"),
     features: [
@@ -97,7 +106,7 @@ export const PLANS: Plan[] = [
       "Password-protected statements",
       "Priority support",
     ],
-    cta: { label: "Get Pro", href: upgradeHref("Pro") },
+    cta: { label: "Get Pro", href: checkoutHref("pro_monthly") },
     badge: "Most popular",
     highlighted: true,
   },

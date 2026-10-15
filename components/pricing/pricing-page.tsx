@@ -4,7 +4,6 @@ import { CONTACT_EMAIL, FAQS, PLANS, type Plan } from "@/lib/plans"
 import { PRICING } from "@/lib/pricing"
 import { cn } from "@/lib/utils"
 import { ArrowRight, ArrowUpRight, Check, Info } from "lucide-react"
-import Link from "next/link"
 import { FaqAccordion } from "./faq-accordion"
 
 const freeReports = PRICING.free.allowance.reports
@@ -109,7 +108,16 @@ function PlanRow({ plan }: { plan: Plan }) {
             <span className="rounded-full bg-cyan-accent-soft px-2 py-0.5 font-rethink font-semibold text-cyan-accent">
               Save {plan.yearly.saving}%
             </span>
-            or {plan.yearly.price}/year
+            {plan.yearly.href ? (
+              <a
+                href={plan.yearly.href}
+                className="underline underline-offset-4 hover:text-foreground focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-cyan-accent focus-visible:outline-none"
+              >
+                or {plan.yearly.price}/year
+              </a>
+            ) : (
+              <>or {plan.yearly.price}/year</>
+            )}
           </p>
         ) : null}
         <p className="mt-4 text-[0.9375rem] leading-[1.65] text-pretty text-muted-foreground">
@@ -134,7 +142,8 @@ function PlanRow({ plan }: { plan: Plan }) {
         ) : null}
       </div>
 
-      <Link
+      {/* A plain link: prefetching the checkout route would start a checkout. */}
+      <a
         href={plan.cta.href}
         className={cn(
           "inline-flex w-fit items-center gap-2 self-end rounded-full px-5 py-2.5 font-rethink text-sm font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-cyan-accent focus-visible:ring-offset-2 focus-visible:outline-none sm:col-start-1 sm:row-start-2",
@@ -148,7 +157,7 @@ function PlanRow({ plan }: { plan: Plan }) {
           className="size-4 transition-transform group-hover/plan:translate-x-0.5 motion-reduce:transition-none"
           aria-hidden
         />
-      </Link>
+      </a>
     </article>
   )
 }

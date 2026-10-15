@@ -44,12 +44,14 @@ export function SettingsPage({
   userId,
   email,
   usage,
+  checkoutSucceeded,
   emailTips: initialEmailTips,
   reportStorage: initialReportStorage,
 }: {
   userId: string
   email: string
   usage: UsageSummary
+  checkoutSucceeded: boolean
   emailTips: boolean
   reportStorage: ReportStorage
 }) {
@@ -133,6 +135,16 @@ export function SettingsPage({
           <h2 className="text-xl font-semibold tracking-[-0.03em]">
             Plan and usage
           </h2>
+          {checkoutSucceeded ? (
+            <p
+              role="status"
+              className="mt-5 flex items-center gap-2 rounded-2xl border border-cyan-accent/30 bg-cyan-accent-soft p-4 text-sm"
+            >
+              <Check className="size-4 shrink-0 text-cyan-accent" aria-hidden />
+              Payment received. Your plan updates here within a minute; refresh
+              if it hasn’t yet.
+            </p>
+          ) : null}
           <UsageCard usage={usage} className="mt-5" />
         </section>
 

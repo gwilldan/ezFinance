@@ -30,6 +30,10 @@ create table if not exists public.account_usage (
   updated_at timestamptz not null default now()
 );
 
+-- The Bachs subscription paying for the plan, so its cancellation finds the
+-- account. Added after the table, so existing databases get it too.
+alter table public.account_usage add column if not exists bachs_subscription_id text unique;
+
 alter table public.account_usage enable row level security;
 
 -- Moves a paid plan's period forward to the current month, clearing usage.
@@ -177,6 +181,20 @@ begin
   where user_id = p_user_id;
 end;
 $$;
+
+--------------------------------------------------------------------------------
+-- Billing: Bachs webhook events already handled
+--------------------------------------------------------------------------------
+
+-- Bachs delivers each webhook at least once; its event id is recorded here so
+-- a repeat delivery doesn't grant the same purchase twice.
+create table if not exists public.billing_events (
+  id text primary key,
+  type text not null,
+  received_at timestamptz not null default now()
+);
+
+alter table public.billing_events enable row level security;
 
 --------------------------------------------------------------------------------
 -- Reports: where each analyzed statement is kept

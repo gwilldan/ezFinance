@@ -12,7 +12,11 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-export default async function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ checkout?: string }>
+}) {
   const user = await getSessionUser()
   if (!user) redirect("/")
 
@@ -23,6 +27,8 @@ export default async function Page() {
         userId={user.id}
         email={user.email ?? ""}
         usage={await getUsageSummary(user.id)}
+        // Back from Bachs checkout; the webhook may still be on its way.
+        checkoutSucceeded={(await searchParams).checkout === "success"}
         // Opted in unless the user has turned it off.
         emailTips={user.user_metadata.email_tips !== false}
         reportStorage={reportStorageOf(user.user_metadata)}
