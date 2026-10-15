@@ -2,6 +2,7 @@
 
 import { UsageCard } from "@/components/billing/usage-card"
 import type { UsageSummary } from "@/lib/billing/types"
+import { CONTACT_EMAIL } from "@/lib/plans"
 import { clearLocalReports } from "@/lib/report-store"
 import type { ReportStorage } from "@/lib/reports/types"
 import {
@@ -9,16 +10,23 @@ import {
   Cloud,
   Database,
   Laptop,
+  LoaderCircle,
   ShieldCheck,
   Trash2,
   TriangleAlert,
 } from "lucide-react"
+import { useRouter } from "next/navigation"
 import type { ReactNode } from "react"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { ConfirmDialog } from "./confirm-dialog"
 
 type Dialog = "data" | "account" | null
 type SaveState = "idle" | "saved" | "error"
+type CheckoutState = "waiting" | "updated" | "slow" | null
+
+/** How often, and for how long, to re-check usage after a checkout. */
+const CHECKOUT_POLL_MS = 3_000
+const CHECKOUT_POLL_LIMIT_MS = 60_000
 
 const STORAGE_OPTIONS: {
   value: ReportStorage
@@ -61,6 +69,31 @@ export function SettingsPage({
   const [storageSaveState, setStorageSaveState] = useState<SaveState>("idle")
   const [dialog, setDialog] = useState<Dialog>(null)
   const [dataCleared, setDataCleared] = useState(false)
+  const router = useRouter()
+  const [checkout, setCheckout] = useState<CheckoutState>(
+    checkoutSucceeded ? "waiting" : null
+  )
+  // Usage as it was before the webhook landed; any change means it has.
+  const usageBeforeCheckout = useRef(JSON.stringify(usage))
+
+  // Back from Bachs: re-render with fresh usage until the webhook shows up.
+  useEffect(() => {
+    if (checkout !== "waiting") return
+    const poll = setInterval(() => router.refresh(), CHECKOUT_POLL_MS)
+    const giveUp = setTimeout(() => setCheckout("slow"), CHECKOUT_POLL_LIMIT_MS)
+    return () => {
+      clearInterval(poll)
+      clearTimeout(giveUp)
+    }
+  }, [checkout, router])
+
+  useEffect(() => {
+    if (checkout !== "waiting") return
+    if (JSON.stringify(usage) === usageBeforeCheckout.current) return
+    setCheckout("updated")
+    // Drop ?checkout=success so a reload doesn't start waiting again.
+    window.history.replaceState(null, "", window.location.pathname)
+  }, [checkout, usage])
 
   async function toggleEmailTips(next: boolean) {
     setEmailTips(next)
@@ -135,14 +168,46 @@ export function SettingsPage({
           <h2 className="text-xl font-semibold tracking-[-0.03em]">
             Plan and usage
           </h2>
-          {checkoutSucceeded ? (
+          {checkout ? (
             <p
               role="status"
               className="mt-5 flex items-center gap-2 rounded-2xl border border-cyan-accent/30 bg-cyan-accent-soft p-4 text-sm"
             >
-              <Check className="size-4 shrink-0 text-cyan-accent" aria-hidden />
-              Payment received. Your plan updates here within a minute; refresh
-              if it hasn’t yet.
+              {checkout === "waiting" ? (
+                <>
+                  <LoaderCircle
+                    className="size-4 shrink-0 animate-spin text-cyan-accent motion-reduce:animate-none"
+                    aria-hidden
+                  />
+                  Payment received. Updating your plan…
+                </>
+              ) : checkout === "updated" ? (
+                <>
+                  <Check
+                    className="size-4 shrink-0 text-cyan-accent"
+                    aria-hidden
+                  />
+                  Payment received. Your plan is updated.
+                </>
+              ) : (
+                <>
+                  <Check
+                    className="size-4 shrink-0 text-cyan-accent"
+                    aria-hidden
+                  />
+                  <span>
+                    Payment received. If your plan below hasn’t changed yet,
+                    refresh in a few minutes. Still missing? Email{" "}
+                    <a
+                      href={`mailto:${CONTACT_EMAIL}`}
+                      className="underline underline-offset-4"
+                    >
+                      {CONTACT_EMAIL}
+                    </a>
+                    .
+                  </span>
+                </>
+              )}
             </p>
           ) : null}
           <UsageCard usage={usage} className="mt-5" />
