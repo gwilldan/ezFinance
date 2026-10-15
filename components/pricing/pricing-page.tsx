@@ -30,7 +30,7 @@ export function PricingPage() {
         <section className="lg:sticky lg:top-36 lg:self-start">
           <Eyebrow>Pricing</Eyebrow>
           <h1 className="mt-6 font-rethink text-4xl leading-[1.08] font-semibold tracking-[-0.035em] text-balance sm:text-5xl lg:text-[3.5rem]">
-            Choose the plan that fits your money.
+            Choose the plan that fits your needs.
           </h1>
           <p className="mt-6 max-w-md text-lg leading-[1.7] text-pretty text-muted-foreground">
             Three plans plus a one-time report unlock. Start free and upgrade
@@ -103,23 +103,6 @@ function PlanRow({ plan }: { plan: Plan }) {
           {plan.name}
         </h2>
         <Price price={plan.price} period={plan.period} />
-        {plan.yearly ? (
-          <p className="mt-3 flex flex-wrap items-center gap-2 text-xs leading-[1.5] text-muted-foreground tabular-nums">
-            <span className="rounded-full bg-cyan-accent-soft px-2 py-0.5 font-rethink font-semibold text-cyan-accent">
-              Save {plan.yearly.saving}%
-            </span>
-            {plan.yearly.href ? (
-              <a
-                href={plan.yearly.href}
-                className="underline underline-offset-4 hover:text-foreground focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-cyan-accent focus-visible:outline-none"
-              >
-                or {plan.yearly.price}/year
-              </a>
-            ) : (
-              <>or {plan.yearly.price}/year</>
-            )}
-          </p>
-        ) : null}
         <p className="mt-4 text-[0.9375rem] leading-[1.65] text-pretty text-muted-foreground">
           {plan.description}
         </p>

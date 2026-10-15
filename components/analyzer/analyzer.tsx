@@ -153,8 +153,47 @@ export default function Analyzer({
         />
       ) : null}
 
+      <div className="rounded-2xl bg-white p-6 shadow ring-1 ring-slate-100">
+        <h3 className="text-sm font-medium text-slate-700">Statement tool</h3>
+        <div className="mt-4 flex items-center justify-between rounded-xl border border-slate-100 px-4 py-3">
+          <div className="flex items-start gap-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50">
+              <svg
+                className="h-5 w-5 text-emerald-600"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M3 3v18h18" />
+                <path d="M7 16v-6" />
+                <path d="M11 16v-2" />
+                <path d="M15 16v-10" />
+              </svg>
+            </div>
+            <div>
+              <div className="font-medium">Analyze statement</div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                Categories, cash flow, subscriptions and a full report.
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled
+            className="cursor-not-allowed text-slate-300"
+            aria-label="Statement tool options (coming soon)"
+          >
+            ▾
+          </button>
+        </div>
+      </div>
+
       {/* One card for every state, so the background never changes. */}
-      <div className="bg-dot-grid rounded-[2rem] bg-cyan-accent px-8 py-14 text-center text-cyan-accent-foreground shadow-sm sm:py-16">
+      <div className="bg-dot-grid mt-8 rounded-[2rem] bg-cyan-accent px-8 py-14 text-center text-cyan-accent-foreground shadow-sm sm:py-16">
         {uploadState === "idle" ? (
           <>
             <h1
@@ -207,45 +246,6 @@ export default function Analyzer({
             }
           />
         )}
-      </div>
-
-      <div className="mt-8 rounded-2xl bg-white p-6 shadow ring-1 ring-slate-100">
-        <h3 className="text-sm font-medium text-slate-700">Statement tool</h3>
-        <div className="mt-4 flex items-center justify-between rounded-xl border border-slate-100 px-4 py-3">
-          <div className="flex items-start gap-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50">
-              <svg
-                className="h-5 w-5 text-emerald-600"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden
-              >
-                <path d="M3 3v18h18" />
-                <path d="M7 16v-6" />
-                <path d="M11 16v-2" />
-                <path d="M15 16v-10" />
-              </svg>
-            </div>
-            <div>
-              <div className="font-medium">Analyze statement</div>
-              <div className="mt-1 text-sm text-muted-foreground">
-                Categories, cash flow, subscriptions and a full report.
-              </div>
-            </div>
-          </div>
-          <button
-            type="button"
-            disabled
-            className="cursor-not-allowed text-slate-300"
-            aria-label="Statement tool options (coming soon)"
-          >
-            ▾
-          </button>
-        </div>
       </div>
 
       <div className="mt-8 rounded-2xl bg-white p-6 shadow ring-1 ring-slate-100">
