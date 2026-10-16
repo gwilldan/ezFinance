@@ -35,9 +35,6 @@ const contact = (subject: string) =>
 export const waitlistHref = (product: string) =>
   contact(`ezFinance ${product} waitlist`)
 
-/** Plans sold by talking to us rather than at checkout. */
-export const upgradeHref = (plan: string) => contact(`ezFinance ${plan}`)
-
 /** Starts a Bachs checkout (app/api/checkout). Use a plain <a>: prefetching would create checkouts. */
 export const checkoutHref = (product: ProductKey) =>
   `/api/checkout?product=${product}`
@@ -117,6 +114,7 @@ export const PLANS: Plan[] = [
     yearly: {
       price: formatPrice(business.yearly),
       saving: yearlySaving(business),
+      href: checkoutHref("business_yearly"),
     },
     description: "For accountants and consultants with many clients.",
     allowance: allowanceCopy(business.allowance, business.maxPages, " a month"),
@@ -126,7 +124,7 @@ export const PLANS: Plan[] = [
       "Keeps working past your allowance",
       "Dedicated support",
     ],
-    cta: { label: "Talk to us", href: upgradeHref("Business") },
+    cta: { label: "Get Business", href: checkoutHref("business_monthly") },
     badge: "For teams",
   },
 ]
